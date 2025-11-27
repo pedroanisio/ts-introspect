@@ -1,0 +1,103 @@
+{
+  "name": "ts-introspect",
+  "version": "1.0.0",
+  "description": "Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation",
+  "keywords": [
+    "typescript",
+    "documentation",
+    "introspection",
+    "metadata",
+    "eslint-plugin",
+    "developer-tools",
+    "self-documenting"
+  ],
+  "author": "pals",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neo-dom-agent/ts-introspect.git"
+  },
+  "homepage": "https://github.com/neo-dom-agent/ts-introspect#readme",
+  "bugs": {
+    "url": "https://github.com/neo-dom-agent/ts-introspect/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ts-introspect": "./bin/ts-introspect.js",
+    "tsi": "./bin/ts-introspect.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/metadata.d.ts",
+      "import": "./dist/types/metadata.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint/plugin.d.ts",
+      "import": "./dist/eslint/plugin.js"
+    },
+    "./registry": {
+      "types": "./dist/core/registry.d.ts",
+      "import": "./dist/core/registry.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "templates",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "dev": "tsc --watch",
+    "dev:test": "vitest",
+    "check": "npm run lint && tsc && vitest run",
+    "check:watch": "concurrently \"tsc --watch\" \"vitest\"",
+    "clean": "rm -rf dist",
+    "validate": "./scripts/validate-publish.sh",
+    "prepublishOnly": "npm run clean && npm run lint && npm run build && npm test"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "glob": "^10.3.0"
+  },
+  "peerDependencies": {
+    "@typescript-eslint/utils": ">=7.0.0",
+    "eslint": ">=8.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    },
+    "@typescript-eslint/utils": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/eslint": "^9.6.1",
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^4.0.14",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^4.0.14"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
