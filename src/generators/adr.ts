@@ -662,6 +662,10 @@ export function writeAdr(options: AdrOptions = {}): string {
 export function generateQuickStartGuide(): string {
   return `# ts-introspect Quick Start Guide
 
+Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation.
+
+**Works with TypeScript (.ts) and React (.tsx) projects.**
+
 ## Installation
 
 \`\`\`bash
@@ -674,36 +678,115 @@ npm install ts-introspect --save-dev
 npx tsi init
 \`\`\`
 
-## Add Metadata to a File
+## Add Metadata to Files
 
 \`\`\`bash
-# Auto-generate stub
+# Auto-generate stub for a file
 npx tsi generate src/my-file.ts
 
-# Then edit the file to fill in description, responsibilities, etc.
+# Generate for entire directory
+npx tsi generate src/
+
+# Overwrite existing metadata
+npx tsi generate src/ --overwrite
 \`\`\`
 
 ## Validate
 
 \`\`\`bash
-# Check all files
+# Check all files (JSON output by default)
 npx tsi lint src/
 
-# Check specific file
-npx tsi lint src/my-file.ts
+# Human-readable output
+npx tsi lint src/ --format=text
+
+# Strict mode (warnings become errors)
+npx tsi lint src/ --strict
 \`\`\`
 
-## Generate Report
+## Generate Reports
 
 \`\`\`bash
-npx tsi report --html
-# Opens introspection-report.html
+# Summary report (JSON)
+npx tsi report
+
+# HTML visual report
+npx tsi report --format=html
+
+# List all TODOs
+npx tsi report --type=todos
+
+# List all fixes
+npx tsi report --type=fixes
+\`\`\`
+
+## Analyze Dependencies
+
+\`\`\`bash
+# Show dependency summary
+npx tsi deps
+
+# Find circular dependencies
+npx tsi deps --circular
+
+# Find unused modules
+npx tsi deps --unused
+
+# Find who uses a module
+npx tsi deps --who-uses core/utils
+\`\`\`
+
+## Manage Architecture Decision Records (ADRs)
+
+\`\`\`bash
+# List all ADRs
+npx tsi adr --list
+
+# Add a new ADR
+npx tsi adr --add --title="Use TypeScript" --decision="TypeScript over JavaScript" --rationale="Type safety"
+
+# Export ADRs to markdown
+npx tsi adr --export-all
+
+# Validate ADRs
+npx tsi adr --validate
+\`\`\`
+
+## Generate Documentation Templates
+
+\`\`\`bash
+# Generate all documentation templates
+npx tsi docs
+
+# Generate specific template
+npx tsi docs --template=introspection
+npx tsi docs --template=code-markers
 \`\`\`
 
 ## Install Git Hooks
 
 \`\`\`bash
 npx tsi hooks --install
+\`\`\`
+
+## AI-Focused CLI
+
+The CLI outputs JSON by default for machine consumption (AI agents, CI/CD):
+
+\`\`\`bash
+# Get API version
+npx tsi --api-version
+
+# Get CLI schema (for AI agents)
+npx tsi --schema=json
+npx tsi --schema=openapi
+
+# List all commands with parameters
+npx tsi --list-commands
+
+# Human-friendly output (opt-in)
+npx tsi lint --format=text
+npx tsi deps --format=table
 \`\`\`
 
 ## Minimal Metadata Example
@@ -735,12 +818,69 @@ export const __metadata: FileMetadata = {
 };
 \`\`\`
 
+## React Component Metadata Example
+
+For \`.tsx\` files, React-specific metadata is auto-detected:
+
+\`\`\`tsx
+import type { FileMetadata } from 'ts-introspect/types';
+
+export const __metadata: FileMetadata = {
+  module: 'components/Button',
+  filename: 'Button.tsx',
+  description: 'Reusable button component',
+  responsibilities: ['Render button with variants', 'Handle click events'],
+  exports: ['Button', 'ButtonProps'],
+  dependencies: {
+    internal: ['hooks/useTheme'],
+    external: ['react']
+  },
+  status: 'stable',
+  createdAt: '2025-01-01',
+  updatedAt: '2025-01-01',
+  
+  // React-specific (auto-generated)
+  react: {
+    componentType: 'ui',
+    props: {
+      interfaceName: 'ButtonProps',
+      properties: [
+        { name: 'variant', type: "'primary' | 'secondary'", required: false },
+        { name: 'onClick', type: '() => void', required: true }
+      ]
+    },
+    hooks: [
+      { name: 'useState', isCustom: false },
+      { name: 'useTheme', isCustom: true }
+    ],
+    memoized: true
+  },
+  
+  changelog: [],
+  todos: [],
+  fixes: [],
+  _meta: {
+    contentHash: 'will-be-generated',
+    lastValidated: '2025-01-01',
+    generatedDeps: []
+  }
+};
+\`\`\`
+
 ## Need Help?
 
 \`\`\`bash
 npx tsi --help
 npx tsi <command> --help
 \`\`\`
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | User error (invalid input, validation failed) |
+| 2 | System error (file access, etc.) |
 `;
 }
 

@@ -4,6 +4,7 @@
     "src/index.ts",
     "src/cli/index.ts",
     "src/cli/output.ts",
+    "src/cli/logger.ts",
     "src/eslint/plugin.ts",
     "src/generators/themes/index.ts"
   ],

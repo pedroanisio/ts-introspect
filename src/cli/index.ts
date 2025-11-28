@@ -153,7 +153,7 @@ program
   .option('--all', 'Generate all documentation')
   .option('-o, --output <dir>', 'Output directory', 'docs')
   .option('--adr-number <n>', 'ADR number', '1')
-  .option('--template <type>', 'ADR template: introspection, code-markers', 'introspection')
+  .option('--template <type>', 'ADR template: introspection, code-markers (generates all if not specified)')
   .option('--format <type>', 'Output format: json, text', 'json')
   .action(docsCommand);
 

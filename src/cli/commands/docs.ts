@@ -19,6 +19,12 @@ interface DocsOptions {
   template?: string;
 }
 
+// All available ADR templates
+const ADR_TEMPLATES: { template: AdrTemplate; adrNumber: number }[] = [
+  { template: 'introspection', adrNumber: 1 },
+  { template: 'code-markers', adrNumber: 2 },
+];
+
 export async function docsCommand(options: DocsOptions): Promise<void> {
   stdout(chalk.blue('\n📚 Generating documentation...\n'));
 
@@ -41,17 +47,32 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   const generateAll = options.all || (!options.adr && !options.quickstart);
 
   if (options.adr || generateAll) {
-    const template = (options.template as AdrTemplate) ?? 'introspection';
-    const adrNumber = options.adrNumber ? parseInt(options.adrNumber, 10) : 1;
-    
-    const adrPath = writeAdr({
-      projectName,
-      outputDir: path.join(outputDir, 'adr'),
-      adrNumber,
-      template
-    });
-    stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
-    generated++;
+    // If specific template requested, generate only that one
+    if (options.template) {
+      const template = options.template as AdrTemplate;
+      const adrNumber = options.adrNumber ? parseInt(options.adrNumber, 10) : 1;
+      
+      const adrPath = writeAdr({
+        projectName,
+        outputDir: path.join(outputDir, 'adr'),
+        adrNumber,
+        template
+      });
+      stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
+      generated++;
+    } else {
+      // Generate ALL template ADRs
+      for (const { template, adrNumber } of ADR_TEMPLATES) {
+        const adrPath = writeAdr({
+          projectName,
+          outputDir: path.join(outputDir, 'adr'),
+          adrNumber,
+          template
+        });
+        stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
+        generated++;
+      }
+    }
   }
 
   if (options.quickstart || generateAll) {

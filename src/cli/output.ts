@@ -14,7 +14,7 @@
  */
 
 import chalk from 'chalk';
-import { stdout, stderrJson, logger } from './logger.js';
+import { stdout, stderr, stderrJson } from './logger.js';
 
 // ============================================
 // Constants
@@ -179,14 +179,14 @@ export function outputHuman(message: string): void {
 
 /**
  * Output colored text for human consumption
- * Uses logger.info for structured logging per ADR-001
+ * Uses stdout for direct output (not structured logging)
  */
 export const human = {
-  info: (msg: string) => logger.info(chalk.blue(msg)),
-  success: (msg: string) => logger.info(chalk.green(msg)),
-  warn: (msg: string) => logger.warn(chalk.yellow(msg)),
-  error: (msg: string) => logger.error(chalk.red(msg)),
-  dim: (msg: string) => logger.info(chalk.gray(msg)),
+  info: (msg: string) => stdout(chalk.blue(msg)),
+  success: (msg: string) => stdout(chalk.green(msg)),
+  warn: (msg: string) => stdout(chalk.yellow(msg)),
+  error: (msg: string) => stderr(chalk.red(msg)),
+  dim: (msg: string) => stdout(chalk.gray(msg)),
 };
 
 // ============================================
