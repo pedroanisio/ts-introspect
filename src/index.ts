@@ -120,7 +120,9 @@ export {
 export {
   generateHtmlReport,
   generateReportData,
-  type HtmlReportData
+  type HtmlReportData,
+  type HtmlReportOptions,
+  type ThemeName
 } from './generators/html-report.js';
 
 export {

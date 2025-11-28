@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/index.ts",
+    "src/cli/index.ts",
+    "src/cli/output.ts",
+    "src/eslint/plugin.ts",
+    "src/generators/themes/index.ts"
+  ],
+  "project": ["src/**/*.ts"],
+  "ignore": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ],
+  "ignoreBinaries": [],
+  "ignoreExportsUsedInFile": true,
+  "vitest": {
+    "entry": ["tests/**/*.test.ts"],
+    "project": ["tests/**/*.ts"]
+  },
+  "eslint": true,
+  "typescript": {
+    "config": ["tsconfig.json"]
+  },
+  "rules": {
+    "optionalPeerDependencies": "off"
+  }
+}

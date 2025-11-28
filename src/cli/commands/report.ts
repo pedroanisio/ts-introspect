@@ -1,7 +1,8 @@
 /**
  * Report Command
  *
- * Generate introspection reports
+ * Generate introspection reports.
+ * AI-focused: JSON output by default.
  */
 
 import fs from 'fs';
@@ -12,46 +13,71 @@ import { IntrospectionRegistry } from '../../core/registry.js';
 import { DependencyAnalyzer } from '../../core/analyzer.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import { generateHtmlReport, generateReportData } from '../../generators/html-report.js';
+import {
+  outputJson,
+  success,
+  outputError,
+  ErrorCode,
+  isHumanFormat,
+  human,
+  type OutputFormat,
+} from '../output.js';
 
 interface ReportOptions {
   type?: 'todos' | 'fixes' | 'deps' | 'summary' | 'all';
   output?: string;
-  format?: 'text' | 'json' | 'markdown' | 'html';
-  html?: boolean;
+  format?: OutputFormat | 'markdown' | 'html';
+  theme?: string;
 }
 
 export async function reportCommand(options: ReportOptions): Promise<void> {
+  const format = options.format ?? 'json';
   const registry = new IntrospectionRegistry();
   const srcDir = path.resolve(process.cwd(), DEFAULT_CONFIG.srcDir);
 
-  console.log(chalk.blue('\n📊 Loading project metadata...\n'));
+  if (isHumanFormat(format)) {
+    human.info('\n📊 Loading project metadata...\n');
+  }
 
-  await registry.loadAll(srcDir, false);
-  
+  try {
+    await registry.loadAll(srcDir, false);
+  } catch (err) {
+    outputError(
+      ErrorCode.SYSTEM_ERROR,
+      `Failed to load metadata: ${err instanceof Error ? err.message : String(err)}`,
+      500
+    );
+  }
+
   const errors = registry.getErrors();
-  if (errors.length > 0) {
-    console.log(chalk.yellow(`⚠️  Encountered ${errors.length} errors while loading metadata:\n`));
+  if (errors.length > 0 && isHumanFormat(format)) {
+    human.warn(`⚠️  Encountered ${errors.length} errors while loading metadata:\n`);
     for (const { file, error } of errors.slice(0, 10)) {
-      console.log(chalk.gray(`  ${file}: ${error}`));
+      human.dim(`  ${file}: ${error}`);
     }
     if (errors.length > 10) {
-      console.log(chalk.gray(`  ... and ${errors.length - 10} more`));
+      human.dim(`  ... and ${errors.length - 10} more`);
     }
     console.log('');
   }
 
-  // Determine format
-  const format = options.html ? 'html' : (options.format ?? 'text');
-
   // For HTML, always generate full report
   if (format === 'html') {
-    await generateHtmlReportOutput(registry, srcDir, options.output);
+    await generateHtmlReportOutput(registry, srcDir, options.output, options.theme);
     return;
   }
 
   if (registry.size() === 0) {
-    console.log(chalk.yellow('⚠️  No modules with metadata found.'));
-    console.log(chalk.gray('   Run `tsi generate` to add metadata to your files.\n'));
+    if (format === 'json') {
+      outputJson(success({
+        warning: 'No modules with metadata found',
+        hint: 'Run `tsi generate` to add metadata to your files',
+        summary: null,
+      }));
+    } else {
+      human.warn('⚠️  No modules with metadata found.');
+      human.dim('   Run `tsi generate` to add metadata to your files.\n');
+    }
     return;
   }
 
@@ -69,11 +95,15 @@ export async function reportCommand(options: ReportOptions): Promise<void> {
       output = generateSummaryReport(registry, format);
       break;
     case 'all':
-      output = [
-        generateSummaryReport(registry, format),
-        generateTodosReport(registry, format),
-        generateFixesReport(registry, format)
-      ].join('\n\n');
+      if (format === 'json') {
+        output = generateAllReportJson(registry);
+      } else {
+        output = [
+          generateSummaryReport(registry, format),
+          generateTodosReport(registry, format),
+          generateFixesReport(registry, format)
+        ].join('\n\n');
+      }
       break;
     default:
       output = generateSummaryReport(registry, format);
@@ -83,7 +113,11 @@ export async function reportCommand(options: ReportOptions): Promise<void> {
   if (options.output) {
     const outputPath = path.resolve(process.cwd(), options.output);
     fs.writeFileSync(outputPath, output);
-    console.log(chalk.green(`✅ Report saved to ${outputPath}\n`));
+    if (format === 'json') {
+      outputJson(success({ saved_to: outputPath }));
+    } else {
+      human.success(`✅ Report saved to ${outputPath}\n`);
+    }
   } else {
     console.log(output);
   }
@@ -92,9 +126,14 @@ export async function reportCommand(options: ReportOptions): Promise<void> {
 async function generateHtmlReportOutput(
   registry: IntrospectionRegistry,
   srcDir: string,
-  outputPath?: string
+  outputPath?: string,
+  theme?: string
 ): Promise<void> {
-  console.log(chalk.blue('🔍 Analyzing dependencies...\n'));
+  if (!process.stdout.isTTY) {
+    // Silent in non-TTY
+  } else {
+    human.info('🔍 Analyzing dependencies...\n');
+  }
 
   // Analyze dependencies
   const analyzer = new DependencyAnalyzer(srcDir);
@@ -132,7 +171,7 @@ async function generateHtmlReportOutput(
   );
 
   // Generate HTML
-  const html = generateHtmlReport(reportData, totalFiles);
+  const html = generateHtmlReport(reportData, totalFiles, { theme: theme ?? 'classic' });
 
   // Determine output path
   const finalPath = outputPath 
@@ -141,27 +180,60 @@ async function generateHtmlReportOutput(
 
   fs.writeFileSync(finalPath, html);
 
-  console.log(chalk.green(`✅ HTML report generated: ${finalPath}`));
-  console.log(chalk.gray(`\n   Open in browser: file://${finalPath}\n`));
+  // Output result
+  outputJson(success({
+    report_path: finalPath,
+    project_name: projectName,
+    summary: {
+      modules_with_metadata: registry.size(),
+      total_files: totalFiles,
+      coverage_percent: totalFiles > 0 ? Math.round((registry.size() / totalFiles) * 100) : 0,
+      open_todos: registry.getAllTodos().length,
+      open_fixes: registry.getAllFixes().length,
+      circular_dependencies: circularDeps.length,
+      unused_modules: unusedModules.length,
+    }
+  }));
+}
 
-  // Print summary
-  console.log(chalk.bold('📊 Report Summary:'));
-  console.log(chalk.gray('─'.repeat(40)));
-  console.log(`   ${chalk.cyan('Modules with metadata:')} ${registry.size()}`);
-  console.log(`   ${chalk.cyan('Total TypeScript files:')} ${totalFiles}`);
-  console.log(`   ${chalk.cyan('Coverage:')} ${totalFiles > 0 ? Math.round((registry.size() / totalFiles) * 100) : 0}%`);
-  console.log(`   ${chalk.yellow('Open TODOs:')} ${registry.getAllTodos().length}`);
-  console.log(`   ${chalk.red('Open Fixes:')} ${registry.getAllFixes().length}`);
-  
-  if (circularDeps.length > 0) {
-    console.log(`   ${chalk.red('Circular dependencies:')} ${circularDeps.length}`);
-  }
-  
-  if (unusedModules.length > 0) {
-    console.log(`   ${chalk.yellow('Unused modules:')} ${unusedModules.length}`);
-  }
-  
-  console.log('');
+function generateAllReportJson(registry: IntrospectionRegistry): string {
+  const summary = registry.getSummary();
+  const todos = registry.getAllTodos();
+  const fixes = registry.getAllFixes();
+  const recentlyUpdated = registry.getRecentlyUpdated(7);
+
+  return JSON.stringify({
+    success: true,
+    result: {
+      summary: {
+        total_modules: summary.totalModules,
+        todo_count: summary.todoCount,
+        fix_count: summary.fixCount,
+        recently_updated: summary.recentlyUpdated,
+        status_breakdown: summary.statusBreakdown,
+      },
+      todos: todos.map(t => ({
+        id: t.id,
+        module: t.module,
+        description: t.description,
+        priority: t.priority,
+        status: t.status,
+        created_at: t.createdAt,
+      })),
+      fixes: fixes.map(f => ({
+        id: f.id,
+        module: f.module,
+        description: f.description,
+        severity: f.severity,
+        status: f.status,
+        created_at: f.createdAt,
+      })),
+      recently_updated: recentlyUpdated.map(m => ({
+        module: m.module,
+        updated_at: m.updatedAt,
+      })),
+    }
+  }, null, 2);
 }
 
 function generateSummaryReport(
@@ -172,7 +244,22 @@ function generateSummaryReport(
   const recentlyUpdated = registry.getRecentlyUpdated(7);
 
   if (format === 'json') {
-    return JSON.stringify({ summary, recentlyUpdated: recentlyUpdated.map(m => m.module) }, null, 2);
+    return JSON.stringify({
+      success: true,
+      result: {
+        summary: {
+          total_modules: summary.totalModules,
+          todo_count: summary.todoCount,
+          fix_count: summary.fixCount,
+          recently_updated: summary.recentlyUpdated,
+          status_breakdown: summary.statusBreakdown,
+        },
+        recently_updated_modules: recentlyUpdated.map(m => ({
+          module: m.module,
+          updated_at: m.updatedAt,
+        })),
+      }
+    }, null, 2);
   }
 
   if (format === 'markdown') {
@@ -195,6 +282,19 @@ function generateSummaryReport(
 ## Recently Updated Modules
 ${recentlyUpdated.map(m => `- \`${m.module}\` (${m.updatedAt})`).join('\n') || '_None_'}
 `;
+  }
+
+  if (format === 'table') {
+    return `| Metric | Value |
+|--------|-------|
+| Total Modules | ${summary.totalModules} |
+| Open TODOs | ${summary.todoCount} |
+| Open Fixes | ${summary.fixCount} |
+| Recently Updated | ${summary.recentlyUpdated} |
+| Stable | ${summary.statusBreakdown.stable} |
+| Beta | ${summary.statusBreakdown.beta} |
+| Experimental | ${summary.statusBreakdown.experimental} |
+| Deprecated | ${summary.statusBreakdown.deprecated} |`;
   }
 
   // Text format
@@ -230,10 +330,23 @@ function generateTodosReport(
   const todos = registry.getAllTodos();
 
   if (format === 'json') {
-    return JSON.stringify({ todos }, null, 2);
+    return JSON.stringify({
+      success: true,
+      result: {
+        count: todos.length,
+        todos: todos.map(t => ({
+          id: t.id,
+          module: t.module,
+          description: t.description,
+          priority: t.priority,
+          status: t.status,
+          created_at: t.createdAt,
+        })),
+      }
+    }, null, 2);
   }
 
-  if (format === 'markdown') {
+  if (format === 'markdown' || format === 'table') {
     if (todos.length === 0) {
       return '## TODOs\n\n_No open TODOs_\n';
     }
@@ -282,10 +395,23 @@ function generateFixesReport(
   const fixes = registry.getAllFixes();
 
   if (format === 'json') {
-    return JSON.stringify({ fixes }, null, 2);
+    return JSON.stringify({
+      success: true,
+      result: {
+        count: fixes.length,
+        fixes: fixes.map(f => ({
+          id: f.id,
+          module: f.module,
+          description: f.description,
+          severity: f.severity,
+          status: f.status,
+          created_at: f.createdAt,
+        })),
+      }
+    }, null, 2);
   }
 
-  if (format === 'markdown') {
+  if (format === 'markdown' || format === 'table') {
     if (fixes.length === 0) {
       return '## Fixes\n\n_No open fixes_\n';
     }

@@ -225,12 +225,98 @@ The `react` field is automatically populated when you run `tsi generate` on `.ts
 | `tsi report` | Show project summary |
 | `tsi report --type todos` | List all TODOs |
 | `tsi report --type fixes` | List open fixes |
-| `tsi report --html` | Generate HTML report |
+| `tsi report --format html` | Generate HTML report |
 | `tsi deps [file]` | Analyze dependencies |
 | `tsi deps --who-uses <module>` | Find module usages |
 | `tsi deps --unused` | Find unused modules |
+| `tsi deps --circular` | Find circular dependencies |
 | `tsi hooks --install` | Install git hooks |
 | `tsi hooks --uninstall` | Remove git hooks |
+
+## AI-Focused CLI Design
+
+The CLI follows [AI-focused CLI design principles](https://raw.githubusercontent.com/pedroanisio/pedroanisio.github.io/refs/heads/main/building-ai-focused-cli.md) for optimal automation and machine consumption:
+
+### Structured Output (JSON by Default)
+
+All commands output JSON by default for easy parsing by AI agents and automation tools:
+
+```bash
+# Default: machine-readable JSON
+tsi lint
+# Output:
+{
+  "success": true,
+  "version": "1.0.0",
+  "api_version": "v1",
+  "timestamp": "2025-11-28T10:00:00Z",
+  "result": {
+    "passed": true,
+    "summary": { "files_checked": 28, "total_errors": 0 },
+    "results": [...]
+  }
+}
+
+# Human-friendly output (opt-in)
+tsi lint --format=text
+tsi lint --format=table
+```
+
+### Self-Describing Interface
+
+The CLI provides introspection capabilities for AI agents to discover commands:
+
+```bash
+# Get API version
+tsi --api-version
+# { "result": { "api_version": "v1" } }
+
+# List all commands with parameters
+tsi --list-commands
+# [{ "name": "lint", "description": "...", "parameters": [...] }, ...]
+
+# OpenAPI-style schema
+tsi --schema openapi
+tsi --schema json
+```
+
+### Structured Error Responses
+
+Errors follow HTTP-style semantics with machine-parseable codes:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "http_equivalent": 400,
+    "message": "Missing required option: --title",
+    "details": { "field": "title", "expected": "string" },
+    "documentation_url": "https://github.com/..."
+  }
+}
+```
+
+### Exit Codes
+
+| Exit Code | Meaning | Retry |
+|-----------|---------|-------|
+| 0 | Success | - |
+| 1 | User error (4xx) | No |
+| 2 | System error (5xx) | Yes |
+| 3 | Rate limited (429) | With backoff |
+
+### Output Formats
+
+All commands support `--format` for flexible output:
+
+| Format | Use Case |
+|--------|----------|
+| `json` | Default, machine-readable (AI agents, CI/CD) |
+| `table` | Markdown tables, semi-structured |
+| `text` | Human-readable with colors |
+| `markdown` | Documentation generation |
+| `html` | Visual reports |
 
 ## Configuration
 

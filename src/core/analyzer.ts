@@ -505,7 +505,8 @@ export function analyzeReactComponent(filepath: string, content?: string): React
       if (ts.isIdentifier(tagName)) {
         const name = tagName.text;
         // Capital letter = component, not HTML element
-        if (name[0] === name[0]?.toUpperCase() && !renders.includes(name)) {
+        const firstChar = name.charAt(0);
+        if (firstChar && firstChar === firstChar.toUpperCase() && !renders.includes(name)) {
           renders.push(name);
         }
       }
