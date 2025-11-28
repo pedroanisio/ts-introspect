@@ -13,46 +13,52 @@
 export function generateGraphVisualizationScript(graphData: {
   nodes: { id: string; group: string; deps: number; usedBy: number }[];
   links: { source: string; target: string }[];
+  groups: string[];
 }): string {
   return `
     (function() {
       const graphData = ${JSON.stringify(graphData)};
       const container = document.getElementById('dependency-graph');
       const tooltip = document.getElementById('graph-tooltip');
+      const legendContainer = document.getElementById('graph-legend');
       if (!container || graphData.nodes.length === 0) return;
       
       // ============================================
       // Configuration
       // ============================================
       const config = {
-        width: container.clientWidth,
-        height: 600,
-        minZoom: 0.1,
-        maxZoom: 4,
-        nodeMinSize: 10,
-        nodeMaxSize: 35,
-        linkDistance: 120,
-        repulsion: 8000,
-        attraction: 0.008,
-        damping: 0.85,
-        centerGravity: 0.02,
-        simulationIterations: 300
+        width: container.clientWidth || 900,
+        height: 700,
+        minZoom: 0.2,
+        maxZoom: 3,
+        nodeMinSize: 12,
+        nodeMaxSize: 40,
+        linkDistance: 180,
+        repulsion: 15000,
+        attraction: 0.003,
+        damping: 0.7,
+        centerGravity: 0.008,
+        simulationIterations: 500
       };
       
-      const groupColors = {
-        core: '#58a6ff',
-        tools: '#3fb950',
-        config: '#d29922',
-        agents: '#a371f7',
-        utils: '#db61a2',
-        types: '#39c5cf',
-        plugins: '#f97583',
-        mcp: '#79c0ff',
-        logging: '#ffa657',
-        quality: '#56d364',
-        state: '#ff7b72',
-        other: '#8b949e'
-      };
+      // Generate colors for detected groups dynamically
+      const colorPalette = [
+        '#58a6ff', '#3fb950', '#d29922', '#a371f7', '#db61a2', 
+        '#39c5cf', '#f97583', '#79c0ff', '#ffa657', '#56d364',
+        '#ff7b72', '#7ee787', '#ffc6ff', '#caffbf', '#9bf6ff'
+      ];
+      const groupColors = {};
+      (graphData.groups || []).forEach((group, i) => {
+        groupColors[group] = colorPalette[i % colorPalette.length];
+      });
+      groupColors.other = '#8b949e';
+      
+      // Generate legend
+      if (legendContainer) {
+        legendContainer.innerHTML = (graphData.groups || [])
+          .map(g => \`<div class="legend-item"><span class="legend-dot" style="background: \${groupColors[g] || '#8b949e'}"></span> \${g.charAt(0).toUpperCase() + g.slice(1)}</div>\`)
+          .join('');
+      }
       
       // ============================================
       // State
@@ -67,23 +73,41 @@ export function generateGraphVisualizationScript(graphData: {
       let selectedNode = null;
       let searchQuery = '';
       let frame = 0;
-      let currentLayout = 'force';
+      let currentLayout = 'clustered';
       
       // ============================================
       // Initialize Nodes & Links
       // ============================================
+      
+      // Group nodes by their group for better initial positioning
+      const groupIndices = {};
+      const uniqueGroups = [...new Set(graphData.nodes.map(n => n.group))];
+      uniqueGroups.forEach((g, i) => { groupIndices[g] = i; });
+      const groupCount = uniqueGroups.length;
+      
       const nodes = graphData.nodes.map((n, i) => {
-        const angle = (i / graphData.nodes.length) * Math.PI * 2;
-        const radius = Math.min(config.width, config.height) * 0.35;
+        // Position in a grid of clusters
+        const groupIdx = groupIndices[n.group] || 0;
+        const cols = Math.ceil(Math.sqrt(groupCount));
+        const row = Math.floor(groupIdx / cols);
+        const col = groupIdx % cols;
+        
+        const cellWidth = config.width / (cols + 1);
+        const cellHeight = config.height / (Math.ceil(groupCount / cols) + 1);
+        
+        // Add some randomness within the cell
+        const baseX = cellWidth * (col + 1);
+        const baseY = cellHeight * (row + 1);
+        
         return {
-        ...n,
-          x: config.width/2 + Math.cos(angle) * radius * (0.5 + Math.random() * 0.5),
-          y: config.height/2 + Math.sin(angle) * radius * (0.5 + Math.random() * 0.5),
+          ...n,
+          x: baseX + (Math.random() - 0.5) * cellWidth * 0.7,
+          y: baseY + (Math.random() - 0.5) * cellHeight * 0.7,
           vx: 0, vy: 0,
           fx: null, fy: null,
-          size: Math.min(Math.max(n.usedBy * 2 + n.deps + config.nodeMinSize, config.nodeMinSize), config.nodeMaxSize),
-          layer: 0,  // For hierarchical layout
-          cluster: n.group  // For clustered layout
+          size: Math.min(Math.max(n.usedBy * 3 + n.deps * 1.5 + config.nodeMinSize, config.nodeMinSize), config.nodeMaxSize),
+          layer: 0,
+          cluster: n.group
         };
       });
       
@@ -260,42 +284,67 @@ export function generateGraphVisualizationScript(graphData: {
           clusters[cluster].push(n);
         });
         
-        const clusterNames = Object.keys(clusters).sort();
+        const clusterNames = Object.keys(clusters).sort((a, b) => {
+          // Sort by size descending, larger clusters first
+          return clusters[b].length - clusters[a].length;
+        });
         const numClusters = clusterNames.length;
         
-        // Arrange clusters in a grid-like pattern
-        const cols = Math.ceil(Math.sqrt(numClusters));
+        // Arrange clusters in a grid-like pattern with better spacing
+        const cols = Math.ceil(Math.sqrt(numClusters * 1.5));
         const rows = Math.ceil(numClusters / cols);
-        const cellWidth = config.width / cols;
-        const cellHeight = config.height / rows;
-        const padding = 40;
+        const padding = 80;
+        const cellWidth = (config.width - padding * 2) / cols;
+        const cellHeight = (config.height - padding * 2) / rows;
         
         clusterNames.forEach((clusterName, clusterIndex) => {
           const clusterNodes = clusters[clusterName];
           const col = clusterIndex % cols;
           const row = Math.floor(clusterIndex / cols);
           
-          const centerX = cellWidth * (col + 0.5);
-          const centerY = cellHeight * (row + 0.5);
+          const centerX = padding + cellWidth * (col + 0.5);
+          const centerY = padding + cellHeight * (row + 0.5);
           
-          // Arrange nodes in cluster in a circle
-          const clusterRadius = Math.min(cellWidth, cellHeight) / 2 - padding;
-          const angleStep = (2 * Math.PI) / clusterNodes.length;
+          // Sort nodes within cluster by connections for better edge layout
+          clusterNodes.sort((a, b) => (b.deps + b.usedBy) - (a.deps + a.usedBy));
           
-          clusterNodes.forEach((node, i) => {
-            if (clusterNodes.length === 1) {
-              node.targetX = centerX;
-              node.targetY = centerY;
-            } else {
+          const nodeCount = clusterNodes.length;
+          
+          if (nodeCount === 1) {
+            clusterNodes[0].targetX = centerX;
+            clusterNodes[0].targetY = centerY;
+          } else if (nodeCount <= 6) {
+            // Small clusters: single circle
+            const angleStep = (2 * Math.PI) / nodeCount;
+            const radius = 30 + nodeCount * 10;
+            clusterNodes.forEach((node, i) => {
               const angle = angleStep * i - Math.PI / 2;
-              const radius = Math.min(clusterRadius, 30 + clusterNodes.length * 8);
               node.targetX = centerX + Math.cos(angle) * radius;
               node.targetY = centerY + Math.sin(angle) * radius;
-            }
-          });
+            });
+          } else {
+            // Large clusters: use concentric rings (spiral-like)
+            const maxRadius = Math.min(cellWidth, cellHeight) / 2 - 40;
+            const nodesPerRing = 8; // nodes per ring
+            const ringSpacing = 50;
+            
+            clusterNodes.forEach((node, i) => {
+              const ring = Math.floor(i / nodesPerRing);
+              const posInRing = i % nodesPerRing;
+              const nodesInThisRing = Math.min(nodesPerRing, nodeCount - ring * nodesPerRing);
+              
+              const radius = Math.min(40 + ring * ringSpacing, maxRadius);
+              const angleStep = (2 * Math.PI) / nodesInThisRing;
+              const angleOffset = ring * 0.3; // Offset each ring slightly
+              const angle = angleStep * posInRing - Math.PI / 2 + angleOffset;
+              
+              node.targetX = centerX + Math.cos(angle) * radius;
+              node.targetY = centerY + Math.sin(angle) * radius;
+            });
+          }
         });
         
-        animateToTarget(500);
+        animateToTarget(600);
       }
       
       /**
@@ -601,6 +650,10 @@ export function generateGraphVisualizationScript(graphData: {
             </div>
           </div>
           
+          <button class="graph-control-btn toggle-params-btn" id="toggle-params" title="Toggle Parameters">
+            <i data-lucide="sliders-horizontal"></i>
+          </button>
+          
           <div class="control-group control-buttons">
             <button class="graph-control-btn" id="zoom-in" title="Zoom In">
               <i data-lucide="zoom-in"></i>
@@ -624,6 +677,241 @@ export function generateGraphVisualizationScript(graphData: {
         </div>
       \`;
       container.insertAdjacentHTML('afterbegin', controlsHtml);
+      
+      // ============================================
+      // Create Parameters Panel (ADR-007: DRY - reusable slider factory)
+      // ============================================
+      const paramsHtml = \`
+        <div class="graph-params-panel" id="params-panel" style="display: none;">
+          <div class="params-header">
+            <span>⚙️ Physics Parameters</span>
+            <button class="params-close" id="close-params">×</button>
+          </div>
+          <div class="params-content">
+            <div class="param-group">
+              <label>Repulsion Force</label>
+              <input type="range" id="param-repulsion" min="1000" max="50000" value="\${config.repulsion}" step="1000">
+              <span class="param-value" id="val-repulsion">\${config.repulsion}</span>
+            </div>
+            <div class="param-group">
+              <label>Attraction</label>
+              <input type="range" id="param-attraction" min="0.001" max="0.02" value="\${config.attraction}" step="0.001">
+              <span class="param-value" id="val-attraction">\${config.attraction}</span>
+            </div>
+            <div class="param-group">
+              <label>Link Distance</label>
+              <input type="range" id="param-linkDistance" min="50" max="400" value="\${config.linkDistance}" step="10">
+              <span class="param-value" id="val-linkDistance">\${config.linkDistance}</span>
+            </div>
+            <div class="param-group">
+              <label>Damping</label>
+              <input type="range" id="param-damping" min="0.3" max="0.95" value="\${config.damping}" step="0.05">
+              <span class="param-value" id="val-damping">\${config.damping}</span>
+            </div>
+            <div class="param-group">
+              <label>Center Gravity</label>
+              <input type="range" id="param-centerGravity" min="0.001" max="0.05" value="\${config.centerGravity}" step="0.001">
+              <span class="param-value" id="val-centerGravity">\${config.centerGravity}</span>
+            </div>
+            <div class="param-group">
+              <label>Node Size Range</label>
+              <input type="range" id="param-nodeMaxSize" min="15" max="60" value="\${config.nodeMaxSize}" step="5">
+              <span class="param-value" id="val-nodeMaxSize">\${config.nodeMaxSize}</span>
+            </div>
+            <div class="param-actions">
+              <button class="param-btn" id="reset-params">Reset Defaults</button>
+              <button class="param-btn primary" id="apply-params">Apply & Restart</button>
+            </div>
+          </div>
+        </div>
+      \`;
+      container.insertAdjacentHTML('beforeend', paramsHtml);
+      
+      // ============================================
+      // Create Inspect Panel (ADR-004: Structured JSON output)
+      // ============================================
+      const inspectHtml = \`
+        <div class="graph-inspect-panel" id="inspect-panel" style="display: none;">
+          <div class="inspect-header">
+            <span>🔍 Node Inspector</span>
+            <button class="inspect-close" id="close-inspect">×</button>
+          </div>
+          <div class="inspect-content" id="inspect-content">
+            <p class="inspect-empty">Click a node to inspect</p>
+          </div>
+          <div class="inspect-actions">
+            <button class="inspect-btn" id="copy-json" disabled>
+              <i data-lucide="copy"></i> Copy JSON
+            </button>
+            <button class="inspect-btn" id="focus-node" disabled>
+              <i data-lucide="crosshair"></i> Focus
+            </button>
+          </div>
+        </div>
+      \`;
+      container.insertAdjacentHTML('beforeend', inspectHtml);
+      
+      // Inspect panel state
+      let inspectedNode = null;
+      const inspectPanel = document.getElementById('inspect-panel');
+      const inspectContent = document.getElementById('inspect-content');
+      const copyJsonBtn = document.getElementById('copy-json');
+      const focusNodeBtn = document.getElementById('focus-node');
+      
+      /**
+       * Generate structured JSON for node (ADR-004 compliant)
+       * @param node - The node to export
+       * @returns Structured JSON object with api_version and metadata
+       */
+      function generateNodeJson(node) {
+        const deps = outgoingLinks.get(node.id) || [];
+        const usedBy = incomingLinks.get(node.id) || [];
+        
+        return {
+          api_version: 'v1',
+          schema: 'ts-introspect/node-export',
+          timestamp: new Date().toISOString(),
+          data: {
+            module: {
+              id: node.id,
+              name: node.id.split('/').pop(),
+              path: node.id,
+              group: node.group
+            },
+            metrics: {
+              dependencies_count: node.deps,
+              dependents_count: node.usedBy,
+              total_connections: node.deps + node.usedBy,
+              importance_score: node.usedBy * 2 + node.deps
+            },
+            relationships: {
+              depends_on: deps,
+              used_by: usedBy
+            },
+            visualization: {
+              x: Math.round(node.x),
+              y: Math.round(node.y),
+              size: node.size,
+              color: groupColors[node.group] || groupColors.other
+            }
+          }
+        };
+      }
+      
+      /**
+       * Update inspect panel with node data
+       */
+      function updateInspectPanel(node) {
+        if (!node) {
+          inspectContent.innerHTML = '<p class="inspect-empty">Click a node to inspect</p>';
+          copyJsonBtn.disabled = true;
+          focusNodeBtn.disabled = true;
+          inspectedNode = null;
+          return;
+        }
+        
+        inspectedNode = node;
+        const deps = outgoingLinks.get(node.id) || [];
+        const usedBy = incomingLinks.get(node.id) || [];
+        const color = groupColors[node.group] || groupColors.other;
+        
+        inspectContent.innerHTML = \`
+          <div class="inspect-node-header">
+            <span class="inspect-dot" style="background: \${color}"></span>
+            <strong class="inspect-name">\${node.id.split('/').pop()}</strong>
+          </div>
+          <div class="inspect-path">\${node.id}</div>
+          <div class="inspect-group">Group: <span style="color: \${color}">\${node.group}</span></div>
+          
+          <div class="inspect-stats">
+            <div class="inspect-stat">
+              <span class="stat-num">\${node.deps}</span>
+              <span class="stat-label">Dependencies</span>
+            </div>
+            <div class="inspect-stat">
+              <span class="stat-num">\${node.usedBy}</span>
+              <span class="stat-label">Dependents</span>
+            </div>
+            <div class="inspect-stat">
+              <span class="stat-num">\${node.usedBy * 2 + node.deps}</span>
+              <span class="stat-label">Importance</span>
+            </div>
+          </div>
+          
+          \${deps.length > 0 ? \`
+            <div class="inspect-section">
+              <div class="inspect-section-title">Depends on (\${deps.length})</div>
+              <div class="inspect-list">
+                \${deps.map(d => \`<span class="inspect-chip" data-node="\${d}">\${d.split('/').pop()}</span>\`).join('')}
+              </div>
+            </div>
+          \` : ''}
+          
+          \${usedBy.length > 0 ? \`
+            <div class="inspect-section">
+              <div class="inspect-section-title">Used by (\${usedBy.length})</div>
+              <div class="inspect-list">
+                \${usedBy.map(d => \`<span class="inspect-chip" data-node="\${d}">\${d.split('/').pop()}</span>\`).join('')}
+              </div>
+            </div>
+          \` : ''}
+        \`;
+        
+        copyJsonBtn.disabled = false;
+        focusNodeBtn.disabled = false;
+        inspectPanel.style.display = 'block';
+        
+        // Add click handlers for chips to navigate
+        inspectContent.querySelectorAll('.inspect-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const targetId = chip.dataset.node;
+            const targetNode = nodeMap.get(targetId);
+            if (targetNode) {
+              updateInspectPanel(targetNode);
+              highlightNode(targetNode);
+            }
+          });
+        });
+      }
+      
+      /**
+       * Highlight a node and its connections
+       */
+      function highlightNode(node) {
+        // Clear previous highlights
+        nodeGroup.querySelectorAll('.graph-node').forEach(g => {
+          g.classList.remove('highlighted', 'dimmed', 'selected');
+        });
+        linkGroup.querySelectorAll('.graph-link').forEach(l => {
+          l.classList.remove('highlighted', 'dimmed');
+        });
+        
+        if (!node) return;
+        
+        const deps = new Set(outgoingLinks.get(node.id) || []);
+        const usedBy = new Set(incomingLinks.get(node.id) || []);
+        const connected = new Set([...deps, ...usedBy, node.id]);
+        
+        // Highlight/dim nodes
+        nodeGroup.querySelectorAll('.graph-node').forEach(g => {
+          if (g.dataset.id === node.id) {
+            g.classList.add('selected');
+          } else if (connected.has(g.dataset.id)) {
+            g.classList.add('highlighted');
+          } else {
+            g.classList.add('dimmed');
+          }
+        });
+        
+        // Highlight/dim links
+        linkGroup.querySelectorAll('.graph-link').forEach(l => {
+          if (l.dataset.source === node.id || l.dataset.target === node.id) {
+            l.classList.add('highlighted');
+          } else {
+            l.classList.add('dimmed');
+          }
+        });
+      }
       
       // ============================================
       // Create Minimap
@@ -1011,11 +1299,13 @@ export function generateGraphVisualizationScript(graphData: {
             selectedNode = null;
             clearHighlights();
             g.classList.remove('selected');
+            updateInspectPanel(null);
           } else {
             nodeGroup.querySelectorAll('.graph-node').forEach(n => n.classList.remove('selected'));
             selectedNode = node;
             g.classList.add('selected');
             highlightConnections(node.id);
+            updateInspectPanel(node);
             
             // Center on node
             const targetX = config.width/2 - node.x * transform.k;
@@ -1200,6 +1490,113 @@ export function generateGraphVisualizationScript(graphData: {
       });
       
       // ============================================
+      // Parameters Panel Controls
+      // ============================================
+      const paramsPanel = document.getElementById('params-panel');
+      const defaultParams = { ...config };
+      
+      document.getElementById('toggle-params')?.addEventListener('click', () => {
+        paramsPanel.style.display = paramsPanel.style.display === 'none' ? 'block' : 'none';
+      });
+      
+      document.getElementById('close-params')?.addEventListener('click', () => {
+        paramsPanel.style.display = 'none';
+      });
+      
+      // Parameter slider handlers (ADR-007: DRY pattern)
+      // Real-time updates on slider change for immediate feedback
+      ['repulsion', 'attraction', 'linkDistance', 'damping', 'centerGravity', 'nodeMaxSize'].forEach(param => {
+        const slider = document.getElementById('param-' + param);
+        const valueDisplay = document.getElementById('val-' + param);
+        
+        if (slider && valueDisplay) {
+          slider.addEventListener('input', () => {
+            const value = parseFloat(slider.value);
+            valueDisplay.textContent = slider.value;
+            
+            // Apply immediately to config
+            config[param] = value;
+            
+            // For force layout, restart simulation with new params
+            if (currentLayout === 'force' && !simulationRunning) {
+              simulationRunning = true;
+              tick();
+            }
+          });
+        }
+      });
+      
+      document.getElementById('reset-params')?.addEventListener('click', () => {
+        ['repulsion', 'attraction', 'linkDistance', 'damping', 'centerGravity', 'nodeMaxSize'].forEach(param => {
+          const slider = document.getElementById('param-' + param);
+          const valueDisplay = document.getElementById('val-' + param);
+          if (slider && valueDisplay) {
+            slider.value = defaultParams[param];
+            valueDisplay.textContent = defaultParams[param];
+          }
+        });
+      });
+      
+      document.getElementById('apply-params')?.addEventListener('click', () => {
+        config.repulsion = parseFloat(document.getElementById('param-repulsion').value);
+        config.attraction = parseFloat(document.getElementById('param-attraction').value);
+        config.linkDistance = parseFloat(document.getElementById('param-linkDistance').value);
+        config.damping = parseFloat(document.getElementById('param-damping').value);
+        config.centerGravity = parseFloat(document.getElementById('param-centerGravity').value);
+        config.nodeMaxSize = parseFloat(document.getElementById('param-nodeMaxSize').value);
+        
+        // Restart simulation with new params
+        if (currentLayout === 'force') {
+          applyForceLayout();
+        }
+      });
+      
+      // ============================================
+      // Inspect Panel Controls
+      // ============================================
+      document.getElementById('close-inspect')?.addEventListener('click', () => {
+        inspectPanel.style.display = 'none';
+        updateInspectPanel(null);
+        highlightNode(null);
+      });
+      
+      // Copy JSON (ADR-004: Structured JSON output)
+      copyJsonBtn?.addEventListener('click', async () => {
+        if (!inspectedNode) return;
+        
+        const jsonData = generateNodeJson(inspectedNode);
+        const jsonString = JSON.stringify(jsonData, null, 2);
+        
+        try {
+          await navigator.clipboard.writeText(jsonString);
+          copyJsonBtn.innerHTML = '<i data-lucide="check"></i> Copied!';
+          copyJsonBtn.classList.add('success');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          
+          setTimeout(() => {
+            copyJsonBtn.innerHTML = '<i data-lucide="copy"></i> Copy JSON';
+            copyJsonBtn.classList.remove('success');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }, 2000);
+        } catch (err) {
+          copyJsonBtn.innerHTML = '<i data-lucide="x"></i> Failed';
+          setTimeout(() => {
+            copyJsonBtn.innerHTML = '<i data-lucide="copy"></i> Copy JSON';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }, 2000);
+        }
+      });
+      
+      // Focus on inspected node
+      focusNodeBtn?.addEventListener('click', () => {
+        if (!inspectedNode) return;
+        
+        const targetX = config.width/2 - inspectedNode.x * transform.k;
+        const targetY = config.height/2 - inspectedNode.y * transform.k;
+        animateTransform(targetX, targetY, Math.max(1.5, transform.k));
+      });
+      
+      // ============================================
       // Layout Buttons
       // ============================================
       document.querySelectorAll('.layout-btn').forEach(btn => {
@@ -1302,12 +1699,21 @@ export function generateGraphVisualizationScript(graphData: {
       // Initialize
       // ============================================
       updateTransform();
-      tick();
       
-      // Initialize Lucide icons
+      // Initialize Lucide icons first
       if (typeof lucide !== 'undefined') {
         lucide.createIcons();
       }
+      
+      // Apply clustered layout by default (don't run force simulation initially)
+      simulationRunning = false;
+      setTimeout(() => {
+        applyClusteredLayout();
+        // Mark the clustered button as active
+        document.querySelectorAll('.layout-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.layout === 'clustered');
+        });
+      }, 100);
       
       // Resize handler
       window.addEventListener('resize', () => {

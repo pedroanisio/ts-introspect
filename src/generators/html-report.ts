@@ -309,15 +309,13 @@ function generateDependencyGraphSection(data: HtmlReportData): string {
 
   const nodes: { id: string; group: string; deps: number; usedBy: number }[] = [];
   const links: { source: string; target: string }[] = [];
+  const detectedGroups = new Set<string>();
 
   for (const [module, info] of data.dependencyGraph) {
-    let group = 'other';
-    if (module.startsWith('core/')) {group = 'core';}
-    else if (module.startsWith('types/')) {group = 'types';}
-    else if (module.startsWith('utils/')) {group = 'utils';}
-    else if (module.startsWith('config/')) {group = 'config';}
-    else if (module.startsWith('tools/')) {group = 'tools';}
-    else if (module.startsWith('agents/')) {group = 'agents';}
+    // Automatically detect group from first path segment
+    const firstSegment = module.split('/')[0] ?? 'other';
+    const group = firstSegment || 'other';
+    detectedGroups.add(group);
 
     nodes.push({
       id: module,
@@ -333,7 +331,19 @@ function generateDependencyGraphSection(data: HtmlReportData): string {
     }
   }
 
-  const graphScript = generateGraphVisualizationScript({ nodes, links });
+  // Sort groups alphabetically, put 'other' last
+  const sortedGroups = [...detectedGroups].sort((a, b) => {
+    if (a === 'other') return 1;
+    if (b === 'other') return -1;
+    return a.localeCompare(b);
+  });
+
+  const graphScript = generateGraphVisualizationScript({ nodes, links, groups: sortedGroups });
+
+  // Generate filter buttons dynamically
+  const filterButtons = sortedGroups
+    .map(g => `<button class="graph-filter-btn" data-filter="${escapeHtml(g)}">${escapeHtml(g.charAt(0).toUpperCase() + g.slice(1))}</button>`)
+    .join('\n            ');
 
   return `
     <section id="graph" class="section">
@@ -347,10 +357,7 @@ function generateDependencyGraphSection(data: HtmlReportData): string {
           <input type="text" class="graph-search" placeholder="Search modules..." id="graph-search">
           <div class="graph-filters">
             <button class="graph-filter-btn active" data-filter="all">All</button>
-            <button class="graph-filter-btn" data-filter="core">Core</button>
-            <button class="graph-filter-btn" data-filter="tools">Tools</button>
-            <button class="graph-filter-btn" data-filter="config">Config</button>
-            <button class="graph-filter-btn" data-filter="agents">Agents</button>
+            ${filterButtons}
           </div>
           <div class="graph-controls">
             <button class="graph-control-btn" id="zoom-in" title="Zoom In">+</button>
@@ -363,14 +370,7 @@ function generateDependencyGraphSection(data: HtmlReportData): string {
           <div class="graph-tooltip" id="graph-tooltip"></div>
         </div>
         
-        <div class="graph-legend">
-          <div class="legend-item"><span class="legend-dot" style="background: #60a5fa"></span> Core</div>
-          <div class="legend-item"><span class="legend-dot" style="background: #4ade80"></span> Tools</div>
-          <div class="legend-item"><span class="legend-dot" style="background: #fbbf24"></span> Config</div>
-          <div class="legend-item"><span class="legend-dot" style="background: #a78bfa"></span> Agents</div>
-          <div class="legend-item"><span class="legend-dot" style="background: #f472b6"></span> Utils</div>
-          <div class="legend-item"><span class="legend-dot" style="background: #a1a1aa"></span> Other</div>
-        </div>
+        <div class="graph-legend" id="graph-legend"></div>
       </div>
     </section>
     
