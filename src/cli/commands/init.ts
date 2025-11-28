@@ -9,6 +9,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import { installHooks } from '../../hooks/installer.js';
+import { stdout } from '../logger.js';
 
 interface InitOptions {
   force?: boolean;
@@ -17,11 +18,11 @@ interface InitOptions {
 export async function initCommand(options: InitOptions): Promise<void> {
   const configPath = path.resolve(process.cwd(), 'introspect.config.json');
 
-  console.log(chalk.blue('\n📦 Initializing ts-introspect...\n'));
+  stdout(chalk.blue('\n📦 Initializing ts-introspect...\n'));
 
   // Check if already initialized
   if (fs.existsSync(configPath) && !options.force) {
-    console.log(chalk.yellow('⚠️  Configuration already exists. Use --force to overwrite.\n'));
+    stdout(chalk.yellow('⚠️  Configuration already exists. Use --force to overwrite.\n'));
     return;
   }
 
@@ -32,7 +33,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
   };
 
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(chalk.green(`✅ Created ${chalk.bold('introspect.config.json')}`));
+  stdout(chalk.green(`✅ Created ${chalk.bold('introspect.config.json')}`));
 
   // Add to package.json scripts
   const pkgPath = path.resolve(process.cwd(), 'package.json');
@@ -65,28 +66,28 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
       if (added) {
         fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-        console.log(chalk.green(`✅ Added scripts to ${chalk.bold('package.json')}`));
+        stdout(chalk.green(`✅ Added scripts to ${chalk.bold('package.json')}`));
       }
     } catch {
-      console.log(chalk.yellow('⚠️  Could not update package.json'));
+      stdout(chalk.yellow('⚠️  Could not update package.json'));
     }
   }
 
   // Install git hooks
-  console.log(chalk.blue('\n🪝 Installing git hooks...'));
+  stdout(chalk.blue('\n🪝 Installing git hooks...'));
   try {
     await installHooks();
-    console.log(chalk.green('✅ Git hooks installed'));
+    stdout(chalk.green('✅ Git hooks installed'));
   } catch {
-    console.log(chalk.yellow('⚠️  Could not install git hooks (no .git directory?)'));
+    stdout(chalk.yellow('⚠️  Could not install git hooks (no .git directory?)'));
   }
 
   // Print next steps
-  console.log(chalk.blue('\n📋 Next steps:\n'));
-  console.log('   1. Run ' + chalk.cyan('tsi generate') + ' to add metadata to existing files');
-  console.log('   2. Run ' + chalk.cyan('tsi lint') + ' to validate metadata');
-  console.log('   3. Run ' + chalk.cyan('tsi report') + ' to see project overview\n');
+  stdout(chalk.blue('\n📋 Next steps:\n'));
+  stdout('   1. Run ' + chalk.cyan('tsi generate') + ' to add metadata to existing files');
+  stdout('   2. Run ' + chalk.cyan('tsi lint') + ' to validate metadata');
+  stdout('   3. Run ' + chalk.cyan('tsi report') + ' to see project overview\n');
 
-  console.log(chalk.green('✨ ts-introspect initialized successfully!\n'));
+  stdout(chalk.green('✨ ts-introspect initialized successfully!\n'));
 }
 

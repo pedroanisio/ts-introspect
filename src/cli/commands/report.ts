@@ -3,6 +3,7 @@
  *
  * Generate introspection reports.
  * AI-focused: JSON output by default.
+ * Uses tslog per ADR-001
  */
 
 import fs from 'fs';
@@ -22,6 +23,7 @@ import {
   human,
   type OutputFormat,
 } from '../output.js';
+import { stdout } from '../logger.js';
 
 interface ReportOptions {
   type?: 'todos' | 'fixes' | 'deps' | 'summary' | 'all';
@@ -58,7 +60,7 @@ export async function reportCommand(options: ReportOptions): Promise<void> {
     if (errors.length > 10) {
       human.dim(`  ... and ${errors.length - 10} more`);
     }
-    console.log('');
+    stdout('');
   }
 
   // For HTML, always generate full report
@@ -119,7 +121,7 @@ export async function reportCommand(options: ReportOptions): Promise<void> {
       human.success(`✅ Report saved to ${outputPath}\n`);
     }
   } else {
-    console.log(output);
+    stdout(output);
   }
 }
 

@@ -3,6 +3,7 @@
  *
  * Manage git hooks.
  * AI-focused: JSON output by default.
+ * Uses tslog per ADR-001
  */
 
 import chalk from 'chalk';
@@ -16,6 +17,7 @@ import {
   human,
   type OutputFormat,
 } from '../output.js';
+import { stdout } from '../logger.js';
 
 interface HooksOptions {
   install?: boolean;
@@ -98,22 +100,22 @@ export async function hooksCommand(options: HooksOptions): Promise<void> {
   }
 
   if (format === 'table') {
-    console.log('| Hook | Installed |');
-    console.log('|------|-----------|');
-    console.log(`| pre-commit | ${status.preCommit ? '✓' : '✗'} |`);
+    stdout('| Hook | Installed |');
+    stdout('|------|-----------|');
+    stdout(`| pre-commit | ${status.preCommit ? '✓' : '✗'} |`);
     return;
   }
 
   // Text format
-  console.log(chalk.blue('\n🪝 Git Hooks Status\n'));
+  stdout(chalk.blue('\n🪝 Git Hooks Status\n'));
 
   if (status.preCommit) {
-    console.log(chalk.green('  ✓ pre-commit hook installed'));
+    stdout(chalk.green('  ✓ pre-commit hook installed'));
   } else {
-    console.log(chalk.gray('  ○ pre-commit hook not installed'));
+    stdout(chalk.gray('  ○ pre-commit hook not installed'));
   }
 
-  console.log('');
-  console.log(chalk.gray('  Use --install to install hooks'));
-  console.log(chalk.gray('  Use --uninstall to remove hooks\n'));
+  stdout('');
+  stdout(chalk.gray('  Use --install to install hooks'));
+  stdout(chalk.gray('  Use --uninstall to remove hooks\n'));
 }

@@ -9,9 +9,12 @@
  * - Structured error responses with codes
  * - HTTP-style exit code semantics
  * - Self-describing interfaces
+ * 
+ * Uses tslog per ADR-001
  */
 
 import chalk from 'chalk';
+import { stdout, stderrJson, logger } from './logger.js';
 
 // ============================================
 // Constants
@@ -123,7 +126,7 @@ export function error(
  * Output JSON response to stdout
  */
 export function outputJson(response: CliResponse): void {
-  console.log(JSON.stringify(response, null, 2));
+  stdout(JSON.stringify(response, null, 2));
 }
 
 /**
@@ -134,7 +137,7 @@ export function outputSuccess(result: unknown, format: OutputFormat = 'json'): v
     outputJson(success(result));
   } else {
     // For non-JSON, just output the result directly
-    console.log(JSON.stringify(result, null, 2));
+    stdout(JSON.stringify(result, null, 2));
   }
 }
 
@@ -150,7 +153,7 @@ export function outputError(
   const response = error(code, message, httpEquivalent, details);
   
   // Always output JSON for errors (machine-readable)
-  console.error(JSON.stringify(response, null, 2));
+  stderrJson(response);
   
   // Map HTTP codes to exit codes
   let exitCode = ExitCode.USER_ERROR as number;
@@ -171,18 +174,19 @@ export function outputError(
  * Output human-friendly text (for --format=table or --format=text)
  */
 export function outputHuman(message: string): void {
-  console.log(message);
+  stdout(message);
 }
 
 /**
  * Output colored text for human consumption
+ * Uses logger.info for structured logging per ADR-001
  */
 export const human = {
-  info: (msg: string) => console.log(chalk.blue(msg)),
-  success: (msg: string) => console.log(chalk.green(msg)),
-  warn: (msg: string) => console.log(chalk.yellow(msg)),
-  error: (msg: string) => console.error(chalk.red(msg)),
-  dim: (msg: string) => console.log(chalk.gray(msg)),
+  info: (msg: string) => logger.info(chalk.blue(msg)),
+  success: (msg: string) => logger.info(chalk.green(msg)),
+  warn: (msg: string) => logger.warn(chalk.yellow(msg)),
+  error: (msg: string) => logger.error(chalk.red(msg)),
+  dim: (msg: string) => logger.info(chalk.gray(msg)),
 };
 
 // ============================================

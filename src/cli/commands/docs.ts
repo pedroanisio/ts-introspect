@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { writeAdr, writeQuickStartGuide, type AdrTemplate } from '../../generators/adr.js';
+import { stdout } from '../logger.js';
 
 interface DocsOptions {
   adr?: boolean;
@@ -19,7 +20,7 @@ interface DocsOptions {
 }
 
 export async function docsCommand(options: DocsOptions): Promise<void> {
-  console.log(chalk.blue('\n📚 Generating documentation...\n'));
+  stdout(chalk.blue('\n📚 Generating documentation...\n'));
 
   // Get project name from package.json
   let projectName = 'Project';
@@ -49,19 +50,19 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
       adrNumber,
       template
     });
-    console.log(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
+    stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
     generated++;
   }
 
   if (options.quickstart || generateAll) {
     const guidePath = writeQuickStartGuide(outputDir);
-    console.log(chalk.green(`✅ Quick Start guide: ${path.relative(process.cwd(), guidePath)}`));
+    stdout(chalk.green(`✅ Quick Start guide: ${path.relative(process.cwd(), guidePath)}`));
     generated++;
   }
 
-  console.log(chalk.blue(`\n📊 Generated ${generated} documentation file(s)\n`));
+  stdout(chalk.blue(`\n📊 Generated ${generated} documentation file(s)\n`));
   
-  console.log(chalk.gray('These files explain to developers how to use the introspection system.'));
-  console.log(chalk.gray('Consider adding them to your repository and linking from your main README.\n'));
+  stdout(chalk.gray('These files explain to developers how to use the introspection system.'));
+  stdout(chalk.gray('Consider adding them to your repository and linking from your main README.\n'));
 }
 

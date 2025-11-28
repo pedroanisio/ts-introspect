@@ -3,6 +3,7 @@
  *
  * Analyze file dependencies.
  * AI-focused: JSON output by default.
+ * Uses tslog per ADR-001
  */
 
 import path from 'path';
@@ -18,6 +19,7 @@ import {
   human,
   type OutputFormat,
 } from '../output.js';
+import { stdout } from '../logger.js';
 
 interface DepsOptions {
   graph?: boolean;
@@ -104,65 +106,65 @@ function showFileDeps(
   }
 
   if (format === 'table') {
-    console.log(`# Dependencies for: ${relativePath}\n`);
-    console.log('| Type | Dependency |');
-    console.log('|------|------------|');
+    stdout(`# Dependencies for: ${relativePath}\n`);
+    stdout('| Type | Dependency |');
+    stdout('|------|------------|');
     for (const dep of deps.internal) {
-      console.log(`| internal | ${dep} |`);
+      stdout(`| internal | ${dep} |`);
     }
     for (const dep of deps.external) {
-      console.log(`| external | ${dep} |`);
+      stdout(`| external | ${dep} |`);
     }
     for (const dep of deps.types) {
-      console.log(`| type-only | ${dep} |`);
+      stdout(`| type-only | ${dep} |`);
     }
-    console.log('\n## Used By\n');
+    stdout('\n## Used By\n');
     for (const user of usedBy) {
-      console.log(`- ${user}`);
+      stdout(`- ${user}`);
     }
     return;
   }
 
   // Text format
-  console.log(chalk.bold(`📄 ${relativePath}\n`));
+  stdout(chalk.bold(`📄 ${relativePath}\n`));
 
-  console.log(chalk.white('Internal Dependencies:'));
+  stdout(chalk.white('Internal Dependencies:'));
   if (deps.internal.length === 0) {
-    console.log(chalk.gray('  (none)'));
+    stdout(chalk.gray('  (none)'));
   } else {
     for (const dep of deps.internal) {
-      console.log(chalk.cyan(`  → ${dep}`));
+      stdout(chalk.cyan(`  → ${dep}`));
     }
   }
 
-  console.log('');
-  console.log(chalk.white('External Dependencies:'));
+  stdout('');
+  stdout(chalk.white('External Dependencies:'));
   if (deps.external.length === 0) {
-    console.log(chalk.gray('  (none)'));
+    stdout(chalk.gray('  (none)'));
   } else {
     for (const dep of deps.external) {
-      console.log(chalk.yellow(`  → ${dep}`));
+      stdout(chalk.yellow(`  → ${dep}`));
     }
   }
-  console.log('');
+  stdout('');
 
   if (deps.types.length > 0) {
-    console.log(chalk.white('Type-only Dependencies:'));
+    stdout(chalk.white('Type-only Dependencies:'));
     for (const dep of deps.types) {
-      console.log(chalk.gray(`  → ${dep}`));
+      stdout(chalk.gray(`  → ${dep}`));
     }
-    console.log('');
+    stdout('');
   }
 
-  console.log(chalk.white('Used By:'));
+  stdout(chalk.white('Used By:'));
   if (usedBy.length === 0) {
-    console.log(chalk.gray('  (no internal usages found)'));
+    stdout(chalk.gray('  (no internal usages found)'));
   } else {
     for (const user of usedBy) {
-      console.log(chalk.green(`  ← ${user}`));
+      stdout(chalk.green(`  ← ${user}`));
     }
   }
-  console.log('');
+  stdout('');
 }
 
 function showWhoUses(
@@ -183,28 +185,28 @@ function showWhoUses(
   }
 
   if (format === 'table') {
-    console.log(`| Module | Uses "${normalizedModule}" |`);
-    console.log('|--------|------|');
+    stdout(`| Module | Uses "${normalizedModule}" |`);
+    stdout('|--------|------|');
     for (const user of usedBy) {
-      console.log(`| ${user} | ✓ |`);
+      stdout(`| ${user} | ✓ |`);
     }
-    console.log(`\n**Total:** ${usedBy.length}`);
+    stdout(`\n**Total:** ${usedBy.length}`);
     return;
   }
 
   // Text format
-  console.log(chalk.bold(`🔍 Who uses "${normalizedModule}"?\n`));
+  stdout(chalk.bold(`🔍 Who uses "${normalizedModule}"?\n`));
 
   if (usedBy.length === 0) {
-    console.log(chalk.gray('  No internal usages found.'));
-    console.log(chalk.gray('  (May be used as entry point or by external code)\n'));
+    stdout(chalk.gray('  No internal usages found.'));
+    stdout(chalk.gray('  (May be used as entry point or by external code)\n'));
     return;
   }
 
   for (const user of usedBy) {
-    console.log(chalk.green(`  ← ${user}`));
+    stdout(chalk.green(`  ← ${user}`));
   }
-  console.log(`\n  ${chalk.white(`Total: ${usedBy.length} modules`)}\n`);
+  stdout(`\n  ${chalk.white(`Total: ${usedBy.length} modules`)}\n`);
 }
 
 function showUnused(analyzer: DependencyAnalyzer, format: OutputFormat): void {
@@ -219,28 +221,28 @@ function showUnused(analyzer: DependencyAnalyzer, format: OutputFormat): void {
   }
 
   if (format === 'table') {
-    console.log('| Unused Module |');
-    console.log('|---------------|');
+    stdout('| Unused Module |');
+    stdout('|---------------|');
     for (const module of unused) {
-      console.log(`| ${module} |`);
+      stdout(`| ${module} |`);
     }
-    console.log(`\n**Total:** ${unused.length}`);
+    stdout(`\n**Total:** ${unused.length}`);
     return;
   }
 
   // Text format
-  console.log(chalk.bold('📦 Unused Modules\n'));
+  stdout(chalk.bold('📦 Unused Modules\n'));
 
   if (unused.length === 0) {
-    console.log(chalk.green('  All modules are being used! ✓\n'));
+    stdout(chalk.green('  All modules are being used! ✓\n'));
     return;
   }
 
-  console.log(chalk.yellow('  The following modules are not imported by any other module:\n'));
+  stdout(chalk.yellow('  The following modules are not imported by any other module:\n'));
   for (const module of unused) {
-    console.log(chalk.gray(`  ○ ${module}`));
+    stdout(chalk.gray(`  ○ ${module}`));
   }
-  console.log(chalk.gray('\n  Note: Entry points and exported APIs may appear here.\n'));
+  stdout(chalk.gray('\n  Note: Entry points and exported APIs may appear here.\n'));
 }
 
 function showCircular(analyzer: DependencyAnalyzer, format: OutputFormat): void {
@@ -258,28 +260,28 @@ function showCircular(analyzer: DependencyAnalyzer, format: OutputFormat): void 
   }
 
   if (format === 'table') {
-    console.log('| Circular Dependency |');
-    console.log('|---------------------|');
+    stdout('| Circular Dependency |');
+    stdout('|---------------------|');
     for (const cycle of cycles) {
-      console.log(`| ${cycle.join(' → ')} → ${cycle[0]} |`);
+      stdout(`| ${cycle.join(' → ')} → ${cycle[0]} |`);
     }
-    console.log(`\n**Total:** ${cycles.length}`);
+    stdout(`\n**Total:** ${cycles.length}`);
     return;
   }
 
   // Text format
-  console.log(chalk.bold('🔄 Circular Dependencies\n'));
+  stdout(chalk.bold('🔄 Circular Dependencies\n'));
 
   if (cycles.length === 0) {
-    console.log(chalk.green('  ✓ No circular dependencies detected\n'));
+    stdout(chalk.green('  ✓ No circular dependencies detected\n'));
     return;
   }
 
-  console.log(chalk.yellow(`  Found ${cycles.length} circular dependency chains:\n`));
+  stdout(chalk.yellow(`  Found ${cycles.length} circular dependency chains:\n`));
   for (const cycle of cycles) {
-    console.log(chalk.yellow(`  ${cycle.join(' → ')} → ${cycle[0]}`));
+    stdout(chalk.yellow(`  ${cycle.join(' → ')} → ${cycle[0]}`));
   }
-  console.log('');
+  stdout('');
 }
 
 function showGraph(analyzer: DependencyAnalyzer, format: OutputFormat): void {
@@ -308,16 +310,16 @@ function showGraph(analyzer: DependencyAnalyzer, format: OutputFormat): void {
   }
 
   if (format === 'table') {
-    console.log('| Module | Used By | Uses |');
-    console.log('|--------|---------|------|');
+    stdout('| Module | Used By | Uses |');
+    stdout('|--------|---------|------|');
     for (const [module, info] of sorted) {
-      console.log(`| ${module} | ${info.usedBy.length} | ${info.uses.length} |`);
+      stdout(`| ${module} | ${info.usedBy.length} | ${info.uses.length} |`);
     }
     return;
   }
 
   // Text format
-  console.log(chalk.bold('📊 Dependency Graph\n'));
+  stdout(chalk.bold('📊 Dependency Graph\n'));
 
   for (const [module, info] of sorted) {
     const usedByCount = info.usedBy.length;
@@ -326,18 +328,18 @@ function showGraph(analyzer: DependencyAnalyzer, format: OutputFormat): void {
     const indicator = usedByCount > 3 ? chalk.green('●') :
       usedByCount > 0 ? chalk.yellow('●') : chalk.gray('○');
 
-    console.log(`${indicator} ${chalk.cyan(module)} ${chalk.gray(`(←${usedByCount} →${usesCount})`)}`);
+    stdout(`${indicator} ${chalk.cyan(module)} ${chalk.gray(`(←${usedByCount} →${usesCount})`)}`);
   }
 
-  console.log('');
+  stdout('');
   if (cycles.length > 0) {
-    console.log(chalk.yellow.bold('⚠️  Circular Dependencies Detected:\n'));
+    stdout(chalk.yellow.bold('⚠️  Circular Dependencies Detected:\n'));
     for (const cycle of cycles) {
-      console.log(chalk.yellow(`  ${cycle.join(' → ')} → ${cycle[0]}`));
+      stdout(chalk.yellow(`  ${cycle.join(' → ')} → ${cycle[0]}`));
     }
-    console.log('');
+    stdout('');
   } else {
-    console.log(chalk.green('✓ No circular dependencies detected\n'));
+    stdout(chalk.green('✓ No circular dependencies detected\n'));
   }
 }
 
@@ -375,26 +377,26 @@ function showSummary(analyzer: DependencyAnalyzer, format: OutputFormat): void {
   }
 
   if (format === 'table') {
-    console.log('| Metric | Value |');
-    console.log('|--------|-------|');
-    console.log(`| Total Modules | ${totalModules} |`);
-    console.log(`| Unused Modules | ${unused.length} |`);
-    console.log(`| Circular Deps | ${cycles.length} |`);
+    stdout('| Metric | Value |');
+    stdout('|--------|-------|');
+    stdout(`| Total Modules | ${totalModules} |`);
+    stdout(`| Unused Modules | ${unused.length} |`);
+    stdout(`| Circular Deps | ${cycles.length} |`);
     return;
   }
 
   // Text format
-  console.log(chalk.bold('📊 Dependency Summary\n'));
-  console.log(`  ${chalk.white('Total Modules:')} ${chalk.cyan(totalModules)}`);
-  console.log(`  ${chalk.white('Unused Modules:')} ${chalk.yellow(unused.length)}`);
-  console.log(`  ${chalk.white('Circular Deps:')} ${cycles.length > 0 ? chalk.red(cycles.length) : chalk.green('0')}`);
+  stdout(chalk.bold('📊 Dependency Summary\n'));
+  stdout(`  ${chalk.white('Total Modules:')} ${chalk.cyan(totalModules)}`);
+  stdout(`  ${chalk.white('Unused Modules:')} ${chalk.yellow(unused.length)}`);
+  stdout(`  ${chalk.white('Circular Deps:')} ${cycles.length > 0 ? chalk.red(cycles.length) : chalk.green('0')}`);
 
   if (mostUsed.length > 0) {
-    console.log(chalk.white('\n  Most Used Modules:'));
+    stdout(chalk.white('\n  Most Used Modules:'));
     for (const [module, info] of mostUsed) {
-      console.log(`    ${chalk.cyan(module)} ${chalk.gray(`(${info.usedBy.length} usages)`)}`);
+      stdout(`    ${chalk.cyan(module)} ${chalk.gray(`(${info.usedBy.length} usages)`)}`);
     }
   }
 
-  console.log('');
+  stdout('');
 }

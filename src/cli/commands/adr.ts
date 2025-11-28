@@ -16,6 +16,7 @@ import {
   adrToMarkdown,
   adrsToTable,
 } from "../../types/adr.js";
+import { stdout } from "../logger.js";
 
 const DEFAULT_JSONL_PATH = "docs/adrs.jsonl";
 
@@ -68,19 +69,19 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
   // List ADRs
   if (options.list) {
     if (adrs.length === 0) {
-      console.log(chalk.yellow("\nNo ADRs found.\n"));
-      console.log(chalk.gray(`Create one with: tsi adr --add --title "Title" --decision "..." --rationale "..."\n`));
+      stdout(chalk.yellow("\nNo ADRs found.\n"));
+      stdout(chalk.gray(`Create one with: tsi adr --add --title "Title" --decision "..." --rationale "..."\n`));
       return;
     }
 
-    console.log(chalk.blue("\n📋 Architecture Decision Records\n"));
+    stdout(chalk.blue("\n📋 Architecture Decision Records\n"));
 
     const filtered = options.status
       ? adrs.filter((a) => a.status === options.status)
       : adrs;
 
     if (options.table) {
-      console.log(adrsToTable(filtered));
+      stdout(adrsToTable(filtered));
     } else {
       for (const adr of filtered) {
         const statusIcon = {
@@ -90,13 +91,13 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
           superseded: chalk.gray("🔄"),
         }[adr.status];
 
-        console.log(`${statusIcon} ${chalk.bold(adr.id)}: ${adr.title}`);
-        console.log(chalk.gray(`   ${adr.decision}`));
-        console.log();
+        stdout(`${statusIcon} ${chalk.bold(adr.id)}: ${adr.title}`);
+        stdout(chalk.gray(`   ${adr.decision}`));
+        stdout('');
       }
     }
 
-    console.log(chalk.gray(`\nTotal: ${filtered.length} ADR(s) in ${path.relative(process.cwd(), jsonlPath)}\n`));
+    stdout(chalk.gray(`\nTotal: ${filtered.length} ADR(s) in ${path.relative(process.cwd(), jsonlPath)}\n`));
     return;
   }
 
@@ -104,12 +105,12 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
   if (options.show) {
     const adr = adrs.find((a) => a.id === options.show);
     if (!adr) {
-      console.log(chalk.red(`\n❌ ADR ${options.show} not found.\n`));
+      stdout(chalk.red(`\n❌ ADR ${options.show} not found.\n`));
       return;
     }
 
-    console.log(chalk.blue(`\n📄 ${adr.id}: ${adr.title}\n`));
-    console.log(adrToMarkdown(adr));
+    stdout(chalk.blue(`\n📄 ${adr.id}: ${adr.title}\n`));
+    stdout(adrToMarkdown(adr));
     return;
   }
 
@@ -117,7 +118,7 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
   if (options.export) {
     const adr = adrs.find((a) => a.id === options.export);
     if (!adr) {
-      console.log(chalk.red(`\n❌ ADR ${options.export} not found.\n`));
+      stdout(chalk.red(`\n❌ ADR ${options.export} not found.\n`));
       return;
     }
 
@@ -130,7 +131,7 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
     }
 
     fs.writeFileSync(outputPath, adrToMarkdown(adr));
-    console.log(chalk.green(`\n✅ Exported: ${path.relative(process.cwd(), outputPath)}\n`));
+    stdout(chalk.green(`\n✅ Exported: ${path.relative(process.cwd(), outputPath)}\n`));
     return;
   }
 
@@ -149,29 +150,29 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
       count++;
     }
 
-    console.log(chalk.green(`\n✅ Exported ${count} ADR(s) to ${path.relative(process.cwd(), outputDir)}/\n`));
+    stdout(chalk.green(`\n✅ Exported ${count} ADR(s) to ${path.relative(process.cwd(), outputDir)}/\n`));
     return;
   }
 
   // Validate ADRs
   if (options.validate) {
-    console.log(chalk.blue("\n🔍 Validating ADRs...\n"));
+    stdout(chalk.blue("\n🔍 Validating ADRs...\n"));
 
     let hasErrors = false;
     for (const adr of adrs) {
       const errors = validateAdr(adr);
       if (errors.length > 0) {
         hasErrors = true;
-        console.log(chalk.red(`❌ ${adr.id}: ${adr.title}`));
+        stdout(chalk.red(`❌ ${adr.id}: ${adr.title}`));
         for (const err of errors) {
-          console.log(chalk.red(`   - ${err.field}: ${err.message}`));
+          stdout(chalk.red(`   - ${err.field}: ${err.message}`));
         }
-        console.log();
+        stdout('');
       }
     }
 
     if (!hasErrors) {
-      console.log(chalk.green(`✅ All ${adrs.length} ADR(s) are valid.\n`));
+      stdout(chalk.green(`✅ All ${adrs.length} ADR(s) are valid.\n`));
     }
     return;
   }
@@ -179,9 +180,9 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
   // Add new ADR
   if (options.add) {
     if (!options.title || !options.decision || !options.rationale) {
-      console.log(chalk.red("\n❌ Missing required fields.\n"));
-      console.log(chalk.gray("Usage: tsi adr --add --title \"Title\" --decision \"...\" --rationale \"...\"\n"));
-      console.log(chalk.gray("Optional: --status <proposed|approved> --id <ADR-NNN>\n"));
+      stdout(chalk.red("\n❌ Missing required fields.\n"));
+      stdout(chalk.gray("Usage: tsi adr --add --title \"Title\" --decision \"...\" --rationale \"...\"\n"));
+      stdout(chalk.gray("Optional: --status <proposed|approved> --id <ADR-NNN>\n"));
       return;
     }
 
@@ -198,9 +199,9 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
 
     const errors = validateAdr(newAdr);
     if (errors.length > 0) {
-      console.log(chalk.red("\n❌ Validation errors:\n"));
+      stdout(chalk.red("\n❌ Validation errors:\n"));
       for (const err of errors) {
-        console.log(chalk.red(`   - ${err.field}: ${err.message}`));
+        stdout(chalk.red(`   - ${err.field}: ${err.message}`));
       }
       return;
     }
@@ -208,22 +209,22 @@ export async function adrCommand(options: AdrCommandOptions): Promise<void> {
     adrs.push(newAdr);
     saveAdrs(jsonlPath, adrs);
 
-    console.log(chalk.green(`\n✅ Added ${newAdr.id}: ${newAdr.title}\n`));
-    console.log(chalk.gray(`   Saved to: ${path.relative(process.cwd(), jsonlPath)}\n`));
+    stdout(chalk.green(`\n✅ Added ${newAdr.id}: ${newAdr.title}\n`));
+    stdout(chalk.gray(`   Saved to: ${path.relative(process.cwd(), jsonlPath)}\n`));
     return;
   }
 
   // Default: show help
-  console.log(chalk.blue("\n📋 ADR Management Commands\n"));
-  console.log("  tsi adr --list                      List all ADRs");
-  console.log("  tsi adr --list --table              List as markdown table");
-  console.log("  tsi adr --list --status approved    Filter by status");
-  console.log("  tsi adr --show ADR-001              Show specific ADR");
-  console.log("  tsi adr --validate                  Validate all ADRs");
-  console.log("  tsi adr --export ADR-001            Export ADR to markdown");
-  console.log("  tsi adr --export-all                Export all ADRs to markdown");
-  console.log("  tsi adr --add --title \"...\" --decision \"...\" --rationale \"...\"");
-  console.log();
-  console.log(chalk.gray(`  ADR storage: ${path.relative(process.cwd(), jsonlPath)}\n`));
+  stdout(chalk.blue("\n📋 ADR Management Commands\n"));
+  stdout("  tsi adr --list                      List all ADRs");
+  stdout("  tsi adr --list --table              List as markdown table");
+  stdout("  tsi adr --list --status approved    Filter by status");
+  stdout("  tsi adr --show ADR-001              Show specific ADR");
+  stdout("  tsi adr --validate                  Validate all ADRs");
+  stdout("  tsi adr --export ADR-001            Export ADR to markdown");
+  stdout("  tsi adr --export-all                Export all ADRs to markdown");
+  stdout("  tsi adr --add --title \"...\" --decision \"...\" --rationale \"...\"");
+  stdout('');
+  stdout(chalk.gray(`  ADR storage: ${path.relative(process.cwd(), jsonlPath)}\n`));
 }
 

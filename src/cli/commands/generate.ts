@@ -13,6 +13,7 @@ import { generateContentHash } from '../../core/hasher.js';
 import { analyzeDependencies, analyzeExports, analyzeReactComponent } from '../../core/analyzer.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import type { FileMetadata, ReactInfo } from '../../types/metadata.js';
+import { stdout } from '../logger.js';
 
 interface ExtractedMetadata {
   description?: string;
@@ -43,7 +44,7 @@ export async function generateCommand(
   files: string[] | undefined,
   options: GenerateOptions
 ): Promise<void> {
-  console.log(chalk.blue('\n📝 Generating metadata stubs...\n'));
+  stdout(chalk.blue('\n📝 Generating metadata stubs...\n'));
 
   let targetFiles: string[];
 
@@ -55,7 +56,7 @@ export async function generateCommand(
       const resolved = path.resolve(process.cwd(), f);
       
       if (!fs.existsSync(resolved)) {
-        console.log(chalk.yellow(`⚠️  Path not found: ${f}`));
+        stdout(chalk.yellow(`⚠️  Path not found: ${f}`));
         continue;
       }
       
@@ -115,7 +116,7 @@ export async function generateCommand(
 
   for (const filepath of targetFiles) {
     if (!fs.existsSync(filepath)) {
-      console.log(chalk.yellow(`⚠️  File not found: ${filepath}`));
+      stdout(chalk.yellow(`⚠️  File not found: ${filepath}`));
       continue;
     }
 
@@ -146,7 +147,7 @@ export async function generateCommand(
     // Check if already has metadata
     if (metadataCount > 0 && !options.overwrite) {
       if (metadataCount > 1) {
-        console.log(chalk.yellow(`⚠️  Skipped (has ${metadataCount} metadata blocks, use --overwrite to fix): ${relativePath}`));
+        stdout(chalk.yellow(`⚠️  Skipped (has ${metadataCount} metadata blocks, use --overwrite to fix): ${relativePath}`));
       }
       skipped++;
       continue;
@@ -154,7 +155,7 @@ export async function generateCommand(
     
     // Warn if overwriting and multiple blocks exist
     if (metadataCount > 1 && options.overwrite) {
-      console.log(chalk.yellow(`⚠️  Removing ${metadataCount} duplicate metadata blocks: ${relativePath}`));
+      stdout(chalk.yellow(`⚠️  Removing ${metadataCount} duplicate metadata blocks: ${relativePath}`));
     }
 
     // Generate or update metadata stub
@@ -171,18 +172,18 @@ export async function generateCommand(
     const newContent = insertMetadata(content, stub);
     fs.writeFileSync(filepath, newContent);
 
-    console.log(chalk.green(`✅ Generated: ${relativePath}`));
+    stdout(chalk.green(`✅ Generated: ${relativePath}`));
     generated++;
   }
 
-  console.log(chalk.blue(`\n📊 Summary:`));
-  console.log(`   Generated: ${generated}`);
-  console.log(`   Skipped (existing): ${skipped}`);
+  stdout(chalk.blue(`\n📊 Summary:`));
+  stdout(`   Generated: ${generated}`);
+  stdout(`   Skipped (existing): ${skipped}`);
   if (skippedBarrel > 0) {
-    console.log(`   Skipped (barrel exports): ${skippedBarrel}`);
-    console.log(chalk.gray(`   (Files re-exported via 'export * from' - use named exports to include)`));
+    stdout(`   Skipped (barrel exports): ${skippedBarrel}`);
+    stdout(chalk.gray(`   (Files re-exported via 'export * from' - use named exports to include)`));
   }
-  console.log('');
+  stdout('');
 }
 
 /**

@@ -31,6 +31,7 @@ import {
   outputError,
   ErrorCode,
 } from './output.js';
+import { stdout } from './logger.js';
 
 // Handle global options before setting up commander
 const args = process.argv.slice(2);
@@ -49,7 +50,7 @@ const schemaIndex = args.indexOf('--schema');
 if (schemaIndex !== -1) {
   const schemaType = args[schemaIndex + 1];
   if (schemaType === 'openapi') {
-    console.log(JSON.stringify(getOpenApiSchema(), null, 2));
+    stdout(JSON.stringify(getOpenApiSchema(), null, 2));
   } else if (schemaType === 'json') {
     outputJson(success(getCliSchema()));
   } else {

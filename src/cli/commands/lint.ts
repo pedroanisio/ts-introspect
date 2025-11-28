@@ -3,6 +3,7 @@
  *
  * Validate metadata in TypeScript files.
  * AI-focused: JSON output by default, structured error responses.
+ * Uses tslog per ADR-001
  */
 
 import fs from 'fs';
@@ -20,6 +21,7 @@ import {
   human,
   type OutputFormat,
 } from '../output.js';
+import { stdout } from '../logger.js';
 
 interface LintOptions {
   strict?: boolean;
@@ -138,47 +140,47 @@ function outputJsonResult(result: ValidationResult): void {
 
 function outputTableResult(result: ValidationResult): void {
   // Table header
-  console.log('| File | Type | Rule | Message |');
-  console.log('|------|------|------|---------|');
+  stdout('| File | Type | Rule | Message |');
+  stdout('|------|------|------|---------|');
 
   for (const item of result.results) {
     for (const error of item.errors) {
-      console.log(`| ${item.relativePath} | ERROR | ${error.rule} | ${error.message} |`);
+      stdout(`| ${item.relativePath} | ERROR | ${error.rule} | ${error.message} |`);
     }
     for (const warning of item.warnings) {
-      console.log(`| ${item.relativePath} | WARN | ${warning.rule} | ${warning.message} |`);
+      stdout(`| ${item.relativePath} | WARN | ${warning.rule} | ${warning.message} |`);
     }
   }
 
-  console.log('');
-  console.log(`**Summary:** ${result.totalErrors} errors, ${result.totalWarnings} warnings in ${result.filesChecked} files`);
-  console.log(`**Result:** ${result.passed ? 'PASSED' : 'FAILED'}`);
+  stdout('');
+  stdout(`**Summary:** ${result.totalErrors} errors, ${result.totalWarnings} warnings in ${result.filesChecked} files`);
+  stdout(`**Result:** ${result.passed ? 'PASSED' : 'FAILED'}`);
 }
 
 function outputTextResult(result: ValidationResult): void {
   for (const item of result.results) {
-    console.log(chalk.white(`📄 ${item.relativePath}`));
+    stdout(chalk.white(`📄 ${item.relativePath}`));
 
     for (const error of item.errors) {
-      console.log(chalk.red(`   ❌ [${error.rule}] ${error.message}`));
+      stdout(chalk.red(`   ❌ [${error.rule}] ${error.message}`));
     }
 
     for (const warning of item.warnings) {
-      console.log(chalk.yellow(`   ⚠️  [${warning.rule}] ${warning.message}`));
+      stdout(chalk.yellow(`   ⚠️  [${warning.rule}] ${warning.message}`));
     }
 
-    console.log('');
+    stdout('');
   }
 
   // Summary
-  console.log(chalk.gray('─'.repeat(50)));
-  console.log(chalk.white(`📊 Summary: ${chalk.red(`${result.totalErrors} errors`)}, ${chalk.yellow(`${result.totalWarnings} warnings`)}`));
-  console.log(chalk.white(`   Files checked: ${result.filesChecked}`));
-  console.log(chalk.white(`   Files with issues: ${result.filesWithIssues}`));
+  stdout(chalk.gray('─'.repeat(50)));
+  stdout(chalk.white(`📊 Summary: ${chalk.red(`${result.totalErrors} errors`)}, ${chalk.yellow(`${result.totalWarnings} warnings`)}`));
+  stdout(chalk.white(`   Files checked: ${result.filesChecked}`));
+  stdout(chalk.white(`   Files with issues: ${result.filesWithIssues}`));
 
   if (result.passed) {
-    console.log(chalk.green('\n✅ Linting passed\n'));
+    stdout(chalk.green('\n✅ Linting passed\n'));
   } else {
-    console.log(chalk.red('\n❌ Linting failed\n'));
+    stdout(chalk.red('\n❌ Linting failed\n'));
   }
 }
