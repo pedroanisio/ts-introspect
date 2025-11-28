@@ -16,6 +16,7 @@ import type {
   ModuleStatus
 } from '../types/metadata.js';
 import { isFullMetadata } from '../types/metadata.js';
+import { logger } from '../cli/logger.js';
 
 // ============================================
 // Types
@@ -82,7 +83,7 @@ export class IntrospectionRegistry {
     if (!fs.existsSync(srcDir)) {
       const error = `Source directory does not exist: ${srcDir}`;
       this.errors.push({ file: srcDir, error });
-      if (verbose) {console.error(`❌ ${error}`);}
+      if (verbose) {logger.error(error);}
       return;
     }
 
@@ -97,7 +98,7 @@ export class IntrospectionRegistry {
         if (!fs.existsSync(file)) {
           const error = `File does not exist: ${file}`;
           this.errors.push({ file, error });
-          if (verbose) {console.warn(`⚠️  ${error}`);}
+          if (verbose) {logger.warn(error);}
           continue;
         }
 
@@ -111,13 +112,13 @@ export class IntrospectionRegistry {
         if (metadata) {
           this.register(metadata);
         } else if (verbose) {
-          console.warn(`⚠️  Could not extract metadata from: ${file}`);
+          logger.warn(`Could not extract metadata from: ${file}`);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         this.errors.push({ file, error: errorMsg });
         if (verbose) {
-          console.error(`❌ Error processing ${file}: ${errorMsg}`);
+          logger.error(`Error processing ${file}: ${errorMsg}`);
         }
       }
     }
@@ -278,7 +279,7 @@ export class IntrospectionRegistry {
       };
     } catch (error) {
       if (this.verbose) {
-        console.warn(`⚠️  Failed to parse metadata from ${filepath}: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(`Failed to parse metadata from ${filepath}: ${error instanceof Error ? error.message : String(error)}`);
       }
       // Fallback to path-based metadata
       const relativePath = path.relative(srcDir, filepath).replace(/\.ts$/, '');

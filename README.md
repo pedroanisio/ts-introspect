@@ -318,6 +318,45 @@ All commands support `--format` for flexible output:
 | `markdown` | Documentation generation |
 | `html` | Visual reports |
 
+## Project Structure
+
+```
+src/
+├── cli/                    # Command-line interface
+│   ├── commands/           # CLI command implementations
+│   │   ├── adr.ts          # Architecture Decision Records management
+│   │   ├── deps.ts         # Dependency analysis
+│   │   ├── docs.ts         # Documentation generation
+│   │   ├── generate.ts     # Metadata stub generation
+│   │   ├── hooks.ts        # Git hooks management
+│   │   ├── init.ts         # Project initialization
+│   │   ├── lint.ts         # Metadata validation
+│   │   └── report.ts       # Report generation
+│   ├── index.ts            # CLI entry point
+│   ├── logger.ts           # tslog-based logging (ADR-001)
+│   └── output.ts           # AI-focused JSON output helpers
+├── core/                   # Core functionality
+│   ├── analyzer.ts         # TypeScript AST analysis for deps & React
+│   ├── hasher.ts           # Content hashing for change detection
+│   ├── registry.ts         # Runtime metadata collection & queries
+│   └── validator.ts        # Validation rules engine
+├── eslint/                 # ESLint plugin
+│   └── plugin.ts           # require-metadata & valid-metadata rules
+├── generators/             # Output generators
+│   ├── adr.ts              # ADR markdown generation
+│   ├── graph-visualization.ts  # D3.js dependency graph
+│   ├── html-report.ts      # HTML report with themes
+│   ├── stub.ts             # Metadata stub generation
+│   └── themes/             # Report themes (classic, dark, dracula, etc.)
+├── hooks/                  # Git hook management
+│   └── installer.ts        # Pre-commit hook installation
+├── types/                  # TypeScript type definitions
+│   ├── adr.ts              # ADR types & JSONL utilities
+│   ├── config.ts           # Configuration schema
+│   └── metadata.ts         # FileMetadata, TodoItem, ReactInfo types
+└── index.ts                # Public API exports
+```
+
 ## Configuration
 
 Create `introspect.config.json` in your project root:
@@ -524,6 +563,55 @@ Available themes: `classic`, `dark`, `light`, `dracula`, `nord`
 ```bash
 tsi report --html --theme dark -o report.html
 ```
+
+## Development
+
+### Requirements
+
+- Node.js >= 22.0.0
+- npm >= 10.0.0
+
+### Setup
+
+```bash
+git clone https://github.com/neo-dom-agent/ts-introspect.git
+cd ts-introspect
+npm install
+```
+
+### Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm run dev` | Watch mode for development |
+| `npm test` | Run test suite (Vitest) |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with coverage report |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Fix ESLint issues |
+| `npm run knip` | Check for dead code |
+| `npm run check` | Run lint + knip + build + test |
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Run `npm run check` to ensure all checks pass
+4. Commit your changes with clear messages
+5. Push to your fork and submit a pull request
+
+### Architecture Decision Records
+
+This project uses ADRs to document key decisions. See `docs/adrs.jsonl` or run:
+
+```bash
+tsi adr --list --format=table
+```
+
+## Maintainers
+
+- **pals** — [@neo-dom-agent](https://github.com/neo-dom-agent)
 
 ## License
 

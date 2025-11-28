@@ -568,65 +568,34 @@ export function generateGraphVisualizationScript(graphData: {
       const controlsHtml = \`
         <div class="graph-controls-panel">
           <div class="control-group">
-            <input type="text" class="graph-search" placeholder="🔍 Search modules..." id="graph-search">
+            <input type="text" class="graph-search" placeholder="Search modules..." id="graph-search">
           </div>
           
           <div class="control-group layout-selector">
             <span class="control-label">Layout:</span>
             <div class="layout-buttons">
               <button class="layout-btn active" data-layout="force" title="Force-Directed: Physics simulation">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/>
-                  <circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
-                  <line x1="12" y1="9" x2="7" y2="5"/><line x1="12" y1="9" x2="17" y2="5"/>
-                  <line x1="12" y1="15" x2="7" y2="19"/><line x1="12" y1="15" x2="17" y2="19"/>
-                </svg>
+                <i data-lucide="share-2"></i>
                 Force
               </button>
               <button class="layout-btn" data-layout="hierarchical" title="Hierarchical: Dependency layers top-to-bottom">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="2" width="6" height="4" rx="1"/>
-                  <rect x="3" y="10" width="6" height="4" rx="1"/><rect x="15" y="10" width="6" height="4" rx="1"/>
-                  <rect x="6" y="18" width="6" height="4" rx="1"/>
-                  <line x1="12" y1="6" x2="6" y2="10"/><line x1="12" y1="6" x2="18" y2="10"/>
-                  <line x1="9" y1="18" x2="6" y2="14"/><line x1="9" y1="18" x2="18" y2="14"/>
-                </svg>
+                <i data-lucide="git-branch"></i>
                 Hierarchy
               </button>
               <button class="layout-btn" data-layout="radial" title="Radial: Most important node in center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="10"/>
-                  <circle cx="12" cy="2" r="1.5" fill="currentColor"/><circle cx="22" cy="12" r="1.5" fill="currentColor"/>
-                  <circle cx="12" cy="22" r="1.5" fill="currentColor"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/>
-                </svg>
+                <i data-lucide="target"></i>
                 Radial
               </button>
               <button class="layout-btn" data-layout="clustered" title="Clustered: Grouped by module type">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/>
-                  <rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>
-                </svg>
+                <i data-lucide="layout-grid"></i>
                 Cluster
               </button>
               <button class="layout-btn" data-layout="circular" title="Circular: All nodes in a ring">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="9"/>
-                  <circle cx="12" cy="3" r="2" fill="currentColor"/><circle cx="21" cy="12" r="2" fill="currentColor"/>
-                  <circle cx="12" cy="21" r="2" fill="currentColor"/><circle cx="3" cy="12" r="2" fill="currentColor"/>
-                  <circle cx="18" cy="6" r="1.5" fill="currentColor"/><circle cx="18" cy="18" r="1.5" fill="currentColor"/>
-                  <circle cx="6" cy="18" r="1.5" fill="currentColor"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/>
-                </svg>
+                <i data-lucide="circle-dot"></i>
                 Circular
               </button>
               <button class="layout-btn" data-layout="tree" title="Tree: Radiating from entry points">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="4" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/>
-                  <circle cx="3" cy="20" r="2"/><circle cx="9" cy="20" r="2"/>
-                  <circle cx="15" cy="20" r="2"/><circle cx="21" cy="20" r="2"/>
-                  <line x1="12" y1="6" x2="6" y2="10"/><line x1="12" y1="6" x2="18" y2="10"/>
-                  <line x1="6" y1="14" x2="3" y2="18"/><line x1="6" y1="14" x2="9" y2="18"/>
-                  <line x1="18" y1="14" x2="15" y2="18"/><line x1="18" y1="14" x2="21" y2="18"/>
-                </svg>
+                <i data-lucide="network"></i>
                 Tree
               </button>
             </div>
@@ -634,32 +603,19 @@ export function generateGraphVisualizationScript(graphData: {
           
           <div class="control-group control-buttons">
             <button class="graph-control-btn" id="zoom-in" title="Zoom In">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-              </svg>
+              <i data-lucide="zoom-in"></i>
             </button>
             <button class="graph-control-btn" id="zoom-out" title="Zoom Out">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                <line x1="8" y1="11" x2="14" y2="11"/>
-              </svg>
+              <i data-lucide="zoom-out"></i>
             </button>
             <button class="graph-control-btn" id="reset-view" title="Reset View">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
-              </svg>
+              <i data-lucide="refresh-cw"></i>
             </button>
             <button class="graph-control-btn" id="toggle-sim" title="Play/Pause Simulation">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-              </svg>
+              <i data-lucide="pause"></i>
             </button>
             <button class="graph-control-btn" id="fullscreen" title="Fullscreen">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-              </svg>
+              <i data-lucide="maximize"></i>
             </button>
           </div>
           <div class="control-group zoom-indicator">
@@ -1229,8 +1185,9 @@ export function generateGraphVisualizationScript(graphData: {
       document.getElementById('toggle-sim').addEventListener('click', function() {
         simulationRunning = !simulationRunning;
         this.innerHTML = simulationRunning
-          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
-          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+          ? '<i data-lucide="pause"></i>'
+          : '<i data-lucide="play"></i>';
+        lucide.createIcons();
         if (simulationRunning) tick();
       });
       
@@ -1346,6 +1303,11 @@ export function generateGraphVisualizationScript(graphData: {
       // ============================================
       updateTransform();
       tick();
+      
+      // Initialize Lucide icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
       
       // Resize handler
       window.addEventListener('resize', () => {

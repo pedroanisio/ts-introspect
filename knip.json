@@ -13,7 +13,7 @@
     "src/**/*.test.ts",
     "src/**/*.spec.ts"
   ],
-  "ignoreBinaries": [],
+  "ignoreBinaries": ["tsi"],
   "ignoreExportsUsedInFile": true,
   "vitest": {
     "entry": ["tests/**/*.test.ts"],

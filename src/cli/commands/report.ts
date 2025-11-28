@@ -145,9 +145,9 @@ async function generateHtmlReportOutput(
   const unusedModules = analyzer.getUnusedModules();
 
   // Count total files
-  const allFiles = await glob('**/*.ts', {
+  const allFiles = await glob('**/*.{ts,tsx}', {
     cwd: srcDir,
-    ignore: ['**/*.d.ts', '**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']
+    ignore: ['**/*.d.ts', '**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx', '**/node_modules/**']
   });
   const totalFiles = allFiles.length;
 

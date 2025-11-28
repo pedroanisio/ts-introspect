@@ -14,6 +14,7 @@ import type {
 } from '../core/registry.js';
 import type { FileUsageInfo } from '../core/analyzer.js';
 import { generateGraphVisualizationScript } from './graph-visualization.js';
+import { logger } from '../cli/logger.js';
 import {
   type Theme,
   getTheme,
@@ -692,7 +693,7 @@ export function generateHtmlReport(
     if (theme) {
       css = generateFullCss(theme);
     } else {
-      console.warn(`Theme '${options.theme}' not found. Available: ${getAvailableThemes().join(', ')}. Using 'classic'.`);
+      logger.warn(`Theme '${options.theme}' not found. Available: ${getAvailableThemes().join(', ')}. Using 'classic'.`);
     }
   }
 
@@ -717,6 +718,7 @@ export function generateHtmlReport(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(data.projectName)} — Introspection Report</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>${css}</style>
 </head>
 <body>
@@ -752,6 +754,11 @@ export function generateHtmlReport(
   </div>
 
   <script>
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+
     // Smooth scroll navigation
     document.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', e => {

@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { glob } from 'glob';
 import type { ReactInfo, PropInfo, HookInfo, ComponentType } from '../types/metadata.js';
+import { logger } from '../cli/logger.js';
 
 // ============================================
 // Types
@@ -594,13 +595,13 @@ export async function buildDependencyGraph(srcDir: string): Promise<Map<string, 
 
   // Initialize all files
   for (const file of files) {
-    const relativePath = path.relative(srcDir, file).replace(/\.ts$/, '');
+    const relativePath = path.relative(srcDir, file).replace(/\.tsx?$/, '');
     graph.set(relativePath, { usedBy: [], uses: [] });
   }
 
   // Analyze each file
   for (const file of files) {
-    const relativePath = path.relative(srcDir, file).replace(/\.ts$/, '').replace(/\\/g, '/');
+    const relativePath = path.relative(srcDir, file).replace(/\.tsx?$/, '').replace(/\\/g, '/');
     try {
       const deps = analyzeDependencies(file, srcDir);
 
@@ -618,7 +619,7 @@ export async function buildDependencyGraph(srcDir: string): Promise<Map<string, 
       }
     } catch (error) {
       // Skip files that can't be analyzed
-      console.warn(`⚠️  Failed to analyze ${file}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(`Failed to analyze ${file}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -629,7 +630,7 @@ export async function buildDependencyGraph(srcDir: string): Promise<Map<string, 
  * Get all TypeScript files in directory
  */
 async function getAllTsFiles(dir: string): Promise<string[]> {
-  const pattern = '**/*.ts';
+  const pattern = '**/*.{ts,tsx}';
   const files = await glob(pattern, {
     cwd: dir,
     ignore: ['**/*.d.ts', '**/node_modules/**'],

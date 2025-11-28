@@ -1,7 +1,9 @@
 /**
  * Docs Command
  *
- * Generate documentation for the introspection system
+ * Generate documentation for the introspection system.
+ * AI-focused: JSON output by default.
+ * Uses tslog per ADR-001
  */
 
 import fs from 'fs';
@@ -9,6 +11,13 @@ import path from 'path';
 import chalk from 'chalk';
 import { writeAdr, writeQuickStartGuide, type AdrTemplate } from '../../generators/adr.js';
 import { stdout } from '../logger.js';
+import {
+  outputJson,
+  success,
+  isHumanFormat,
+  human,
+  type OutputFormat,
+} from '../output.js';
 
 interface DocsOptions {
   adr?: boolean;
@@ -17,6 +26,7 @@ interface DocsOptions {
   output?: string;
   adrNumber?: string;
   template?: string;
+  format?: OutputFormat;
 }
 
 // All available ADR templates
@@ -26,7 +36,11 @@ const ADR_TEMPLATES: { template: AdrTemplate; adrNumber: number }[] = [
 ];
 
 export async function docsCommand(options: DocsOptions): Promise<void> {
-  stdout(chalk.blue('\n📚 Generating documentation...\n'));
+  const format = options.format ?? 'json';
+
+  if (isHumanFormat(format)) {
+    human.info('\n📚 Generating documentation...\n');
+  }
 
   // Get project name from package.json
   let projectName = 'Project';
@@ -41,7 +55,7 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   }
 
   const outputDir = options.output ?? 'docs';
-  let generated = 0;
+  const generatedFiles: string[] = [];
 
   // Default to --all if no specific option provided
   const generateAll = options.all || (!options.adr && !options.quickstart);
@@ -58,8 +72,11 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
         adrNumber,
         template
       });
-      stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
-      generated++;
+      const relativePath = path.relative(process.cwd(), adrPath);
+      generatedFiles.push(relativePath);
+      if (isHumanFormat(format)) {
+        human.success(`✅ ADR generated: ${relativePath}`);
+      }
     } else {
       // Generate ALL template ADRs
       for (const { template, adrNumber } of ADR_TEMPLATES) {
@@ -69,21 +86,36 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
           adrNumber,
           template
         });
-        stdout(chalk.green(`✅ ADR generated: ${path.relative(process.cwd(), adrPath)}`));
-        generated++;
+        const relativePath = path.relative(process.cwd(), adrPath);
+        generatedFiles.push(relativePath);
+        if (isHumanFormat(format)) {
+          human.success(`✅ ADR generated: ${relativePath}`);
+        }
       }
     }
   }
 
   if (options.quickstart || generateAll) {
     const guidePath = writeQuickStartGuide(outputDir);
-    stdout(chalk.green(`✅ Quick Start guide: ${path.relative(process.cwd(), guidePath)}`));
-    generated++;
+    const relativePath = path.relative(process.cwd(), guidePath);
+    generatedFiles.push(relativePath);
+    if (isHumanFormat(format)) {
+      human.success(`✅ Quick Start guide: ${relativePath}`);
+    }
   }
 
-  stdout(chalk.blue(`\n📊 Generated ${generated} documentation file(s)\n`));
-  
-  stdout(chalk.gray('These files explain to developers how to use the introspection system.'));
-  stdout(chalk.gray('Consider adding them to your repository and linking from your main README.\n'));
+  // Output based on format
+  if (format === 'json') {
+    outputJson(success({
+      action: 'generate_docs',
+      files_generated: generatedFiles.length,
+      files: generatedFiles,
+      output_directory: outputDir,
+    }));
+  } else {
+    stdout(chalk.blue(`\n📊 Generated ${generatedFiles.length} documentation file(s)\n`));
+    stdout(chalk.gray('These files explain to developers how to use the introspection system.'));
+    stdout(chalk.gray('Consider adding them to your repository and linking from your main README.\n'));
+  }
 }
 
