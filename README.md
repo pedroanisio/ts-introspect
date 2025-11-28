@@ -1,6 +1,12 @@
 # ts-introspect
 
-Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation.
+[![npm version](https://img.shields.io/npm/v/ts-introspect.svg)](https://www.npmjs.com/package/ts-introspect)
+[![npm downloads](https://img.shields.io/npm/dm/ts-introspect.svg)](https://www.npmjs.com/package/ts-introspect)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
+
+> Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation.
 
 **Works with TypeScript and React (TSX) projects.**
 
