@@ -245,7 +245,7 @@ gh release create v1.0.0-beta.1 --prerelease --generate-notes
 
 ## Full Changelog
 
-https://github.com/neo-dom-agent/ts-introspect/compare/v0.9.0...v1.0.0
+https://github.com/pedroanisio/ts-introspect/compare/v0.9.0...v1.0.0
 ```
 
 ---

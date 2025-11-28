@@ -147,7 +147,7 @@ echo -e "${GREEN}  ✓ Release v$NEW_VERSION complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BLUE}npm:${NC}     https://www.npmjs.com/package/ts-introspect"
-echo -e "  ${BLUE}GitHub:${NC}  https://github.com/neo-dom-agent/ts-introspect/releases/tag/$TAG"
+echo -e "  ${BLUE}GitHub:${NC}  https://github.com/pedroanisio/ts-introspect/releases/tag/$TAG"
 echo -e "  ${BLUE}Install:${NC} npm install ts-introspect@$NEW_VERSION"
 echo ""
 

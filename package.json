@@ -15,11 +15,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/neo-dom-agent/ts-introspect.git"
+    "url": "git+https://github.com/pedroanisio/ts-introspect.git"
   },
-  "homepage": "https://github.com/neo-dom-agent/ts-introspect#readme",
+  "homepage": "https://github.com/pedroanisio/ts-introspect#readme",
   "bugs": {
-    "url": "https://github.com/neo-dom-agent/ts-introspect/issues"
+    "url": "https://github.com/pedroanisio/ts-introspect/issues"
   },
   "type": "module",
   "main": "dist/index.js",

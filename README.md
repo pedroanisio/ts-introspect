@@ -580,7 +580,7 @@ tsi report --html --theme dark -o report.html
 ### Setup
 
 ```bash
-git clone https://github.com/neo-dom-agent/ts-introspect.git
+git clone https://github.com/pedroanisio/ts-introspect.git
 cd ts-introspect
 npm install
 ```

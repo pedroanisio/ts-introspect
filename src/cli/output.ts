@@ -117,7 +117,7 @@ export function error(
       http_equivalent: httpEquivalent,
       message,
       details,
-      documentation_url: `https://github.com/neo-dom-agent/ts-introspect#${code.toLowerCase()}`,
+      documentation_url: `https://github.com/pedroanisio/ts-introspect#${code.toLowerCase()}`,
     },
   };
 }

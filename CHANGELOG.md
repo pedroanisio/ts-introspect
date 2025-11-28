@@ -74,5 +74,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Knip for dead code detection (ADR-003)
   - Comprehensive test suite (147 tests)
 
-[1.0.0]: https://github.com/neo-dom-agent/ts-introspect/releases/tag/v1.0.0
+[1.0.0]: https://github.com/pedroanisio/ts-introspect/releases/tag/v1.0.0
 
