@@ -333,8 +333,12 @@ function generateDependencyGraphSection(data: HtmlReportData): string {
 
   // Sort groups alphabetically, put 'other' last
   const sortedGroups = [...detectedGroups].sort((a, b) => {
-    if (a === 'other') return 1;
-    if (b === 'other') return -1;
+    if (a === 'other') {
+      return 1;
+    }
+    if (b === 'other') {
+      return -1;
+    }
     return a.localeCompare(b);
   });
 
