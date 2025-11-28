@@ -1,6 +1,6 @@
 {
   "name": "ts-introspect",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation",
   "keywords": [
     "typescript",
