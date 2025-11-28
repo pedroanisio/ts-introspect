@@ -8,7 +8,7 @@ Complete checklist for publishing `ts-introspect` to npm.
 
 ```bash
 npm run validate           # Automated checklist
-npm publish --access public
+npm run release            # Git tag + GitHub release + npm publish
 ```
 
 ---
@@ -20,6 +20,9 @@ npm publish --access public
 [ ] npm run check          # lint + build + test
 [ ] npm audit              # security
 [ ] npm pack --dry-run     # preview contents
+[ ] npm version patch      # bump version + git tag
+[ ] git push --tags        # push to GitHub
+[ ] gh release create      # create GitHub release
 [ ] npm publish --access public
 ```
 
@@ -50,6 +53,14 @@ npm publish --access public
 ### Security
 - [ ] `npm audit` — No vulnerabilities
 - [ ] `npm pack --dry-run` — No sensitive files
+
+### Git & GitHub (Required Before npm Publish)
+- [ ] Working directory is clean (`git status`)
+- [ ] On `main` branch
+- [ ] Up to date with remote (`git pull`)
+- [ ] Version tag exists locally (`git tag -l "v*"`)
+- [ ] Tag pushed to GitHub (`git push origin --tags`)
+- [ ] GitHub release created (`gh release list`)
 
 ---
 
