@@ -80,6 +80,12 @@ export const DEFAULT_EXCLUDE_PATTERNS = [
   '**/tests/**',
   '**/testing/**',
 
+  // Storybook
+  '**/*.stories.ts',
+  '**/*.stories.tsx',
+  '**/stories/**',
+  '**/.storybook/**',
+
   // Test utilities
   '**/*.fixture.ts',
   '**/*.mock.ts',
@@ -110,7 +116,7 @@ export const DEFAULT_EXCLUDE_PATTERNS = [
 
 export const DEFAULT_CONFIG: IntrospectConfig = {
   srcDir: 'src',
-  include: ['**/*.ts'],
+  include: ['**/*.ts', '**/*.tsx'],
   exclude: DEFAULT_EXCLUDE_PATTERNS,
 
   rules: {

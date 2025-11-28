@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { installHooks, uninstallHooks, checkHooksInstalled } from '../../src/hooks/installer.js';
+import { installHooks, uninstallHooks, checkHooksInstalled } from '@/hooks/installer.js';
 
 describe('Hooks Installer', () => {
   let tempDir: string;

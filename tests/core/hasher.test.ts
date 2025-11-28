@@ -9,7 +9,7 @@ import {
   extractStoredHashFromString,
   hasContentChanged,
   getHashInfo
-} from '../../src/core/hasher.js';
+} from '@/core/hasher.js';
 
 describe('Hasher', () => {
   let tempDir: string;

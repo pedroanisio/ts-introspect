@@ -9,6 +9,7 @@ import ts from 'typescript';
 import path from 'path';
 import fs from 'fs';
 import { glob } from 'glob';
+import type { ReactInfo, PropInfo, HookInfo, ComponentType } from '../types/metadata.js';
 
 // ============================================
 // Types
@@ -237,6 +238,346 @@ export function analyzeExports(filepath: string, content?: string): ExportInfo[]
 
   visit(sourceFile);
   return exports;
+}
+
+// ============================================
+// React Analysis
+// ============================================
+
+/**
+ * Built-in React hooks for detection
+ */
+const REACT_HOOKS = new Set([
+  'useState', 'useEffect', 'useContext', 'useReducer', 'useCallback',
+  'useMemo', 'useRef', 'useImperativeHandle', 'useLayoutEffect',
+  'useDebugValue', 'useDeferredValue', 'useTransition', 'useId',
+  'useSyncExternalStore', 'useInsertionEffect'
+]);
+
+/**
+ * Analyze React-specific patterns in a file
+ * @param filepath - Path to the file to analyze
+ * @param content - Optional file content (if not provided, reads from disk)
+ */
+export function analyzeReactComponent(filepath: string, content?: string): ReactInfo | null {
+  // Only analyze .tsx files
+  if (!filepath.endsWith('.tsx')) {
+    return null;
+  }
+
+  if (content === undefined) {
+    if (!fs.existsSync(filepath)) {
+      return null;
+    }
+    content = fs.readFileSync(filepath, 'utf-8');
+  }
+
+  // Quick check: does it look like a React component?
+  if (!content.includes('react') && !content.includes('React')) {
+    return null;
+  }
+
+  const sourceFile = ts.createSourceFile(
+    filepath,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX
+  );
+
+  const reactInfo: ReactInfo = {};
+  const hooks: HookInfo[] = [];
+  const contexts: string[] = [];
+  const renders: string[] = [];
+  const stateManagement: string[] = [];
+  let propsInterfaceName: string | null = null;
+  const propsProperties: PropInfo[] = [];
+  let hasJsx = false;
+
+  // Track component names and their props interfaces
+  const componentPropsMap = new Map<string, string>();
+
+  // First pass: collect all interface and type definitions
+  const typeDefinitions = new Map<string, PropInfo[]>();
+  
+  function collectTypes(node: ts.Node) {
+    if (ts.isInterfaceDeclaration(node)) {
+      const props: PropInfo[] = [];
+      for (const member of node.members) {
+        if (ts.isPropertySignature(member) && member.name && ts.isIdentifier(member.name)) {
+          props.push({
+            name: member.name.text,
+            type: member.type ? member.type.getText(sourceFile) : 'unknown',
+            required: !member.questionToken
+          });
+        }
+      }
+      if (props.length > 0) {
+        typeDefinitions.set(node.name.text, props);
+      }
+    }
+    
+    if (ts.isTypeAliasDeclaration(node) && ts.isTypeLiteralNode(node.type)) {
+      const props: PropInfo[] = [];
+      for (const member of node.type.members) {
+        if (ts.isPropertySignature(member) && member.name && ts.isIdentifier(member.name)) {
+          props.push({
+            name: member.name.text,
+            type: member.type ? member.type.getText(sourceFile) : 'unknown',
+            required: !member.questionToken
+          });
+        }
+      }
+      if (props.length > 0) {
+        typeDefinitions.set(node.name.text, props);
+      }
+    }
+    
+    ts.forEachChild(node, collectTypes);
+  }
+  
+  collectTypes(sourceFile);
+
+  // Helper to extract props type name from a parameter
+  function extractPropsFromParam(param: ts.ParameterDeclaration): string | null {
+    // Case 1: Typed parameter - function MyComp(props: MyProps)
+    if (param.type && ts.isTypeReferenceNode(param.type)) {
+      const typeName = param.type.typeName;
+      if (ts.isIdentifier(typeName)) {
+        return typeName.text;
+      }
+    }
+    // Case 2: Destructured parameter with type - function MyComp({ foo, bar }: MyProps)
+    if (ts.isObjectBindingPattern(param.name) && param.type && ts.isTypeReferenceNode(param.type)) {
+      const typeName = param.type.typeName;
+      if (ts.isIdentifier(typeName)) {
+        return typeName.text;
+      }
+    }
+    return null;
+  }
+
+  function visit(node: ts.Node) {
+    // Detect function components with props type
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      const params = node.parameters;
+      if (params.length > 0) {
+        const firstParam = params[0];
+        if (firstParam) {
+          const propsType = extractPropsFromParam(firstParam);
+          if (propsType) {
+            componentPropsMap.set(node.name.text, propsType);
+            propsInterfaceName = propsType;
+          }
+        }
+      }
+    }
+
+    // Detect arrow function components
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          // Arrow function with type annotation on parameter
+          if (ts.isArrowFunction(decl.initializer)) {
+            const params = decl.initializer.parameters;
+            if (params.length > 0) {
+              const firstParam = params[0];
+              if (firstParam) {
+                const propsType = extractPropsFromParam(firstParam);
+                if (propsType) {
+                  componentPropsMap.set(decl.name.text, propsType);
+                  propsInterfaceName = propsType;
+                }
+              }
+            }
+          }
+          // React.FC<Props> or FC<Props> pattern
+          if (decl.type && ts.isTypeReferenceNode(decl.type)) {
+            const typeName = decl.type.typeName;
+            let fcTypeName: string | null = null;
+            
+            if (ts.isIdentifier(typeName) && (typeName.text === 'FC' || typeName.text === 'FunctionComponent')) {
+              fcTypeName = typeName.text;
+            } else if (ts.isQualifiedName(typeName) && ts.isIdentifier(typeName.right) && 
+                       (typeName.right.text === 'FC' || typeName.right.text === 'FunctionComponent')) {
+              fcTypeName = typeName.right.text;
+            }
+
+            if (fcTypeName && decl.type.typeArguments && decl.type.typeArguments.length > 0) {
+              const typeArg = decl.type.typeArguments[0];
+              if (typeArg && ts.isTypeReferenceNode(typeArg) && ts.isIdentifier(typeArg.typeName)) {
+                componentPropsMap.set(decl.name.text, typeArg.typeName.text);
+                propsInterfaceName = typeArg.typeName.text;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Detect hooks usage
+    if (ts.isCallExpression(node)) {
+      const expr = node.expression;
+      let hookName: string | null = null;
+
+      if (ts.isIdentifier(expr)) {
+        hookName = expr.text;
+      } else if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.name)) {
+        hookName = expr.name.text;
+      }
+
+      if (hookName?.startsWith('use')) {
+        const isBuiltIn = REACT_HOOKS.has(hookName);
+        const existingHook = hooks.find(h => h.name === hookName);
+        
+        if (!existingHook) {
+          const hookInfo: HookInfo = {
+            name: hookName,
+            isCustom: !isBuiltIn
+          };
+
+          // For useContext, try to extract the context name
+          if (hookName === 'useContext' && node.arguments.length > 0) {
+            const arg = node.arguments[0];
+            if (arg && ts.isIdentifier(arg)) {
+              contexts.push(arg.text);
+            }
+          }
+
+          hooks.push(hookInfo);
+        }
+      }
+
+      // Detect state management
+      if (hookName === 'useSelector' || hookName === 'useDispatch') {
+        if (!stateManagement.includes('redux')) {
+          stateManagement.push('redux');
+        }
+      }
+      if (hookName === 'useStore' || hookName === 'useAtom') {
+        // Check import to distinguish zustand vs jotai
+        if (content?.includes('from \'zustand\'') || content?.includes('from "zustand"')) {
+          if (!stateManagement.includes('zustand')) {
+            stateManagement.push('zustand');
+          }
+        }
+        if (content?.includes('from \'jotai\'') || content?.includes('from "jotai"')) {
+          if (!stateManagement.includes('jotai')) {
+            stateManagement.push('jotai');
+          }
+        }
+      }
+      if (hookName === 'useQuery' || hookName === 'useMutation') {
+        if (content?.includes('@tanstack/react-query') || content?.includes('react-query')) {
+          if (!stateManagement.includes('react-query')) {
+            stateManagement.push('react-query');
+          }
+        }
+      }
+    }
+
+    // Detect forwardRef
+    if (ts.isCallExpression(node)) {
+      const expr = node.expression;
+      if (ts.isIdentifier(expr) && expr.text === 'forwardRef') {
+        reactInfo.forwardRef = true;
+      } else if (ts.isPropertyAccessExpression(expr) && 
+                 ts.isIdentifier(expr.name) && expr.name.text === 'forwardRef') {
+        reactInfo.forwardRef = true;
+      }
+    }
+
+    // Detect memo
+    if (ts.isCallExpression(node)) {
+      const expr = node.expression;
+      if (ts.isIdentifier(expr) && expr.text === 'memo') {
+        reactInfo.memoized = true;
+      } else if (ts.isPropertyAccessExpression(expr) && 
+                 ts.isIdentifier(expr.name) && expr.name.text === 'memo') {
+        reactInfo.memoized = true;
+      }
+    }
+
+    // Detect JSX elements (child components)
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      hasJsx = true;
+      const tagName = node.tagName;
+      if (ts.isIdentifier(tagName)) {
+        const name = tagName.text;
+        // Capital letter = component, not HTML element
+        if (name[0] === name[0]?.toUpperCase() && !renders.includes(name)) {
+          renders.push(name);
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  
+  // After visit, look up props interface from collected type definitions
+  if (propsInterfaceName) {
+    const propsDef = typeDefinitions.get(propsInterfaceName);
+    if (propsDef) {
+      propsProperties.push(...propsDef);
+    }
+  }
+
+  // Determine component type based on file path and content
+  const filename = path.basename(filepath).toLowerCase();
+  const dirPath = path.dirname(filepath).toLowerCase();
+  
+  let componentType: ComponentType | undefined;
+  
+  if (dirPath.includes('/pages/') || dirPath.includes('/app/') || filename.includes('page')) {
+    componentType = 'page';
+  } else if (dirPath.includes('/layouts/') || filename.includes('layout')) {
+    componentType = 'layout';
+  } else if (dirPath.includes('/providers/') || filename.includes('provider') || content.includes('createContext')) {
+    componentType = 'provider';
+  } else if (dirPath.includes('/hooks/') || filename.startsWith('use')) {
+    componentType = 'hook';
+  } else if (dirPath.includes('/components/ui/') || dirPath.includes('/ui/')) {
+    componentType = 'ui';
+  } else if (dirPath.includes('/features/') || dirPath.includes('/components/')) {
+    componentType = 'feature';
+  }
+
+  // Only return if we found React-specific patterns
+  if (hooks.length === 0 && !propsInterfaceName && renders.length === 0 && 
+      !reactInfo.forwardRef && !reactInfo.memoized && !hasJsx) {
+    return null;
+  }
+
+  if (componentType) {
+    reactInfo.componentType = componentType;
+  }
+
+  if (propsInterfaceName && propsProperties.length > 0) {
+    reactInfo.props = {
+      interfaceName: propsInterfaceName,
+      properties: propsProperties
+    };
+  }
+
+  if (hooks.length > 0) {
+    reactInfo.hooks = hooks;
+  }
+
+  if (contexts.length > 0) {
+    reactInfo.contexts = contexts;
+  }
+
+  if (stateManagement.length > 0) {
+    reactInfo.stateManagement = stateManagement;
+  }
+
+  if (renders.length > 0) {
+    reactInfo.renders = renders.filter(r => r !== 'Fragment'); // Exclude Fragment
+  }
+
+  return reactInfo;
 }
 
 // ============================================

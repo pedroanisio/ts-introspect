@@ -36,7 +36,12 @@ export type {
   TodoStatus,
   FixSeverity,
   FixStatus,
-  ModuleStatus
+  ModuleStatus,
+  // React types
+  ComponentType,
+  PropInfo,
+  HookInfo,
+  ReactInfo
 } from './types/metadata.js';
 
 export { isFullMetadata } from './types/metadata.js';
@@ -73,6 +78,7 @@ export {
 export {
   analyzeDependencies,
   analyzeExports,
+  analyzeReactComponent,
   buildDependencyGraph,
   DependencyAnalyzer,
   type DependencyInfo as AnalyzedDependencies,

@@ -10,9 +10,9 @@ import chalk from 'chalk';
 import { glob } from 'glob';
 import * as ts from 'typescript';
 import { generateContentHash } from '../../core/hasher.js';
-import { analyzeDependencies, analyzeExports } from '../../core/analyzer.js';
+import { analyzeDependencies, analyzeExports, analyzeReactComponent } from '../../core/analyzer.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
-import type { FileMetadata } from '../../types/metadata.js';
+import type { FileMetadata, ReactInfo } from '../../types/metadata.js';
 
 interface ExtractedMetadata {
   description?: string;
@@ -30,6 +30,7 @@ interface ExtractedMetadata {
   notes?: string;
   seeAlso?: string[];
   tags?: string[];
+  react?: ReactInfo;
 }
 
 interface GenerateOptions {
@@ -67,7 +68,7 @@ export async function generateCommand(
           absolute: true
         });
         expandedFiles.push(...dirFiles);
-      } else if (resolved.endsWith('.ts') && !resolved.endsWith('.d.ts')) {
+      } else if ((resolved.endsWith('.ts') || resolved.endsWith('.tsx')) && !resolved.endsWith('.d.ts')) {
         expandedFiles.push(resolved);
       }
     }
@@ -93,7 +94,8 @@ export async function generateCommand(
       
       if (fs.existsSync(indexPath) && filepath !== indexPath) {
         const indexContent = fs.readFileSync(indexPath, 'utf-8');
-        const filename = path.basename(filepath, '.ts');
+        const ext = path.extname(filepath);
+        const filename = path.basename(filepath, ext);
         
         // Check if this file is re-exported with export * from
         const reExportPattern = new RegExp(`export\\s*\\*\\s*from\\s*['"]\\.\\/${filename}(\\.js)?['"]`);
@@ -344,9 +346,10 @@ function generateMetadataStub(options: {
   srcDir: string;
   existingMetadata?: ExtractedMetadata | null;
 }): string {
-  const { filepath, srcDir, existingMetadata } = options;
+  const { filepath, content, srcDir, existingMetadata } = options;
   const filename = path.basename(filepath);
-  const relativePath = path.relative(srcDir, filepath).replace(/\.ts$/, '');
+  const ext = path.extname(filepath);
+  const relativePath = path.relative(srcDir, filepath).replace(/\.(ts|tsx)$/, '');
 
   const deps = analyzeDependencies(filepath, srcDir);
   const exports = analyzeExports(filepath);
@@ -400,6 +403,57 @@ function generateMetadataStub(options: {
     ? `\n  tags: [${existingMetadata.tags.map(t => `'${t}'`).join(', ')}],`
     : '';
 
+  // React-specific analysis for .tsx files
+  let reactSection = '';
+  if (ext === '.tsx') {
+    const reactInfo = analyzeReactComponent(filepath, content);
+    if (reactInfo) {
+      const parts: string[] = [];
+      
+      if (reactInfo.componentType) {
+        parts.push(`componentType: '${reactInfo.componentType}'`);
+      }
+      
+      if (reactInfo.props) {
+        const propsStr = reactInfo.props.properties
+          .map(p => `{ name: '${p.name}', type: '${p.type.replace(/'/g, "\\'")}', required: ${p.required} }`)
+          .join(',\n        ');
+        parts.push(`props: {\n      interfaceName: '${reactInfo.props.interfaceName}',\n      properties: [\n        ${propsStr}\n      ]\n    }`);
+      }
+      
+      if (reactInfo.hooks && reactInfo.hooks.length > 0) {
+        const hooksStr = reactInfo.hooks
+          .map(h => `{ name: '${h.name}', isCustom: ${h.isCustom} }`)
+          .join(', ');
+        parts.push(`hooks: [${hooksStr}]`);
+      }
+      
+      if (reactInfo.contexts && reactInfo.contexts.length > 0) {
+        parts.push(`contexts: [${reactInfo.contexts.map(c => `'${c}'`).join(', ')}]`);
+      }
+      
+      if (reactInfo.stateManagement && reactInfo.stateManagement.length > 0) {
+        parts.push(`stateManagement: [${reactInfo.stateManagement.map(s => `'${s}'`).join(', ')}]`);
+      }
+      
+      if (reactInfo.renders && reactInfo.renders.length > 0) {
+        parts.push(`renders: [${reactInfo.renders.map(r => `'${r}'`).join(', ')}]`);
+      }
+      
+      if (reactInfo.forwardRef) {
+        parts.push(`forwardRef: true`);
+      }
+      
+      if (reactInfo.memoized) {
+        parts.push(`memoized: true`);
+      }
+      
+      if (parts.length > 0) {
+        reactSection = `\n  react: {\n    ${parts.join(',\n    ')}\n  },`;
+      }
+    }
+  }
+
   return `
 // ============================================
 // FILE INTROSPECTION METADATA
@@ -408,7 +462,7 @@ export const __metadata = {
   module: '${relativePath}',
   filename: '${filename}',
   description: '${description.replace(/'/g, "\\'")}',
-  responsibilities: [${responsibilities}],
+  responsibilities: ${responsibilities},
   exports: [${exportNames.join(', ')}],
   dependencies: {
     internal: [${internalDeps.join(', ')}],
@@ -417,7 +471,7 @@ export const __metadata = {
   },
   status: '${status}' as const,
   createdAt: '${createdAt}',
-  updatedAt: '${today}',${notes}${seeAlso}${tags}
+  updatedAt: '${today}',${notes}${seeAlso}${tags}${reactSection}
   changelog: ${changelog},
   todos: ${todos},
   fixes: ${fixes},

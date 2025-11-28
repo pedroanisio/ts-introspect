@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Validator, validate, lintFiles } from '../../src/core/validator.js';
-import { generateContentHashFromString } from '../../src/core/hasher.js';
+import { Validator, validate, lintFiles } from '@/core/validator.js';
+import { generateContentHashFromString } from '@/core/hasher.js';
 
 describe('Validator', () => {
   let tempDir: string;

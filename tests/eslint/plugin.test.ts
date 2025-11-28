@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import plugin, { requireMetadataRule, validMetadataRule } from '../../src/eslint/plugin.js';
+import plugin, { requireMetadataRule, validMetadataRule } from '@/eslint/plugin.js';
 
 describe('ESLint Plugin', () => {
   describe('plugin structure', () => {

@@ -2,6 +2,8 @@
 
 Self-documenting TypeScript modules with enforced metadata, dependency tracking, and validation.
 
+**Works with TypeScript and React (TSX) projects.**
+
 ## Features
 
 - 📝 **Self-documenting files** - Each file describes what it does, its dependencies, and status
@@ -10,6 +12,7 @@ Self-documenting TypeScript modules with enforced metadata, dependency tracking,
 - 🪝 **Git hooks** - Enforce metadata updates on commit
 - 📊 **Reports** - Generate project-wide TODO lists, dependency graphs, and summaries
 - 🔌 **ESLint plugin** - Integrate with your existing linting workflow
+- ⚛️ **React support** - Auto-detect components, hooks, props, and context usage
 
 ## Installation
 
@@ -45,7 +48,7 @@ tsi lint
 
 ## Usage
 
-### Adding Metadata to Files
+### Adding Metadata to TypeScript Files
 
 ```typescript
 import type { FileMetadata } from 'ts-introspect/types';
@@ -109,6 +112,108 @@ export class UserService {
 }
 ```
 
+### Adding Metadata to React Components
+
+For `.tsx` files, ts-introspect automatically detects React-specific patterns:
+
+```tsx
+import type { FileMetadata } from 'ts-introspect/types';
+
+// ============================================
+// FILE INTROSPECTION
+// ============================================
+export const __metadata: FileMetadata = {
+  module: 'components/UserCard',
+  filename: 'UserCard.tsx',
+
+  description: 'Displays user profile information in a card layout',
+  responsibilities: [
+    'Render user avatar and name',
+    'Handle loading and error states',
+    'Emit click events for profile navigation'
+  ],
+  exports: ['UserCard', 'UserCardProps'],
+
+  dependencies: {
+    internal: ['hooks/useUser', 'components/Avatar', 'utils/formatDate'],
+    external: ['react', '@tanstack/react-query']
+  },
+
+  status: 'stable',
+
+  createdAt: '2025-01-15',
+  updatedAt: '2025-11-28',
+
+  // React-specific metadata (auto-generated)
+  react: {
+    componentType: 'ui',
+    props: {
+      interfaceName: 'UserCardProps',
+      properties: [
+        { name: 'userId', type: 'string', required: true },
+        { name: 'onClick', type: '() => void', required: false },
+        { name: 'variant', type: "'default' | 'compact'", required: false }
+      ]
+    },
+    hooks: [
+      { name: 'useState', isCustom: false },
+      { name: 'useUser', isCustom: true }
+    ],
+    contexts: ['ThemeContext'],
+    stateManagement: ['react-query'],
+    renders: ['Avatar', 'Badge', 'Button'],
+    memoized: true
+  },
+
+  changelog: [],
+  todos: [],
+  fixes: [],
+
+  _meta: {
+    contentHash: 'abc123def456',
+    lastValidated: '2025-11-28',
+    generatedDeps: ['hooks/useUser', 'components/Avatar']
+  }
+};
+
+// Component code below...
+export interface UserCardProps {
+  userId: string;
+  onClick?: () => void;
+  variant?: 'default' | 'compact';
+}
+
+export const UserCard = memo(function UserCard({ userId, onClick, variant = 'default' }: UserCardProps) {
+  const { data: user, isLoading } = useUser(userId);
+  const theme = useContext(ThemeContext);
+
+  if (isLoading) return <Skeleton />;
+
+  return (
+    <div className={styles[variant]} onClick={onClick}>
+      <Avatar src={user.avatar} />
+      <span>{user.name}</span>
+      <Badge status={user.status} />
+    </div>
+  );
+});
+```
+
+### React Metadata Fields
+
+The `react` field is automatically populated when you run `tsi generate` on `.tsx` files:
+
+| Field | Description |
+|-------|-------------|
+| `componentType` | Classification: `page`, `layout`, `feature`, `ui`, `provider`, `hoc`, `hook` |
+| `props` | Interface name and property definitions |
+| `hooks` | List of hooks used (built-in and custom) |
+| `contexts` | React contexts consumed via `useContext` |
+| `stateManagement` | Detected libraries: `redux`, `zustand`, `jotai`, `react-query` |
+| `renders` | Child components rendered in JSX |
+| `forwardRef` | Whether component uses `React.forwardRef` |
+| `memoized` | Whether component uses `React.memo` |
+
 ## CLI Commands
 
 | Command | Description |
@@ -120,6 +225,7 @@ export class UserService {
 | `tsi report` | Show project summary |
 | `tsi report --type todos` | List all TODOs |
 | `tsi report --type fixes` | List open fixes |
+| `tsi report --html` | Generate HTML report |
 | `tsi deps [file]` | Analyze dependencies |
 | `tsi deps --who-uses <module>` | Find module usages |
 | `tsi deps --unused` | Find unused modules |
@@ -133,13 +239,17 @@ Create `introspect.config.json` in your project root:
 ```json
 {
   "srcDir": "src",
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": [
     "**/*.d.ts",
     "**/index.ts",
+    "**/index.tsx",
     "**/*.test.ts",
+    "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/__tests__/**"
+    "**/*.spec.tsx",
+    "**/__tests__/**",
+    "**/*.stories.tsx"
   ],
   "rules": {
     "metadata/required": "error",
@@ -187,6 +297,7 @@ import {
   validate,
   IntrospectionRegistry,
   analyzeDependencies,
+  analyzeReactComponent,
   buildDependencyGraph
 } from 'ts-introspect';
 
@@ -206,8 +317,81 @@ const deps = analyzeDependencies('src/services/user-service.ts');
 console.log('Internal deps:', deps.internal);
 console.log('External deps:', deps.external);
 
+// Analyze React component
+const reactInfo = analyzeReactComponent('src/components/UserCard.tsx');
+if (reactInfo) {
+  console.log('Component type:', reactInfo.componentType);
+  console.log('Hooks used:', reactInfo.hooks);
+  console.log('Props:', reactInfo.props);
+}
+
 // Build dependency graph
 const graph = await buildDependencyGraph('src');
+```
+
+## React Project Best Practices
+
+### What to Document
+
+| Component Type | Recommended |
+|----------------|-------------|
+| **Pages/Routes** | ✅ Yes - Track data requirements, layouts used |
+| **Feature components** | ✅ Yes - Document business logic, state |
+| **Shared UI components** | ✅ Yes - Document props, variants, accessibility |
+| **Custom hooks** | ✅ Yes - Document parameters, return values, side effects |
+| **Context providers** | ✅ Yes - Document state shape, consumers |
+| **Higher-order components** | ✅ Yes - Document wrapped component contract |
+| **Simple wrappers** | ⚠️ Optional - May be unnecessary overhead |
+| **Generated code** | ❌ No - Exclude from config |
+
+### What to Exclude
+
+Add these to your config's `exclude` array:
+
+```json
+{
+  "exclude": [
+    "**/*.d.ts",
+    "**/index.ts",
+    "**/index.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/__tests__/**",
+    "**/__mocks__/**",
+    "**/*.stories.tsx",
+    "**/*.stories.ts",
+    "**/stories/**",
+    "**/.storybook/**",
+    "**/generated/**",
+    "**/*.generated.ts"
+  ]
+}
+```
+
+### Example Project Structure
+
+```
+src/
+├── components/
+│   ├── ui/           # UI primitives (Button, Input, etc.)
+│   │   ├── Button.tsx          # ✅ Document props, variants
+│   │   └── index.ts            # ❌ Excluded (barrel)
+│   └── features/     # Feature components
+│       └── UserProfile.tsx     # ✅ Document with react metadata
+├── hooks/
+│   ├── useAuth.ts              # ✅ Document with hook type
+│   └── useLocalStorage.ts      # ✅ Document generic hook
+├── pages/
+│   ├── HomePage.tsx            # ✅ Document as page component
+│   └── UserPage.tsx            # ✅ Document data requirements
+├── contexts/
+│   └── ThemeProvider.tsx       # ✅ Document context shape
+├── services/
+│   └── api.ts                  # ✅ Standard TS metadata
+└── utils/
+    └── formatters.ts           # ✅ Standard TS metadata
 ```
 
 ## Validation Rules
@@ -227,12 +411,34 @@ const graph = await buildDependencyGraph('src');
 By default, these files are excluded from validation:
 
 - `*.d.ts` - Type declaration files
-- `index.ts` - Barrel/re-export files
-- `*.test.ts`, `*.spec.ts` - Test files
+- `index.ts`, `index.tsx` - Barrel/re-export files
+- `*.test.ts`, `*.spec.ts`, `*.test.tsx`, `*.spec.tsx` - Test files
 - `__tests__/**`, `__mocks__/**` - Test directories
 - `*.fixture.ts`, `*.mock.ts` - Test utilities
+- `*.stories.ts`, `*.stories.tsx` - Storybook files
+
+## HTML Reports
+
+Generate beautiful HTML reports with dependency graphs and analytics:
+
+```bash
+tsi report --html -o report.html
+```
+
+Reports include:
+- Project summary with coverage metrics
+- Status distribution charts
+- TODO priority breakdown
+- Interactive dependency graph
+- Module listing with metadata
+- Recently updated files
+
+Available themes: `classic`, `dark`, `light`, `dracula`, `nord`
+
+```bash
+tsi report --html --theme dark -o report.html
+```
 
 ## License
 
 MIT
-

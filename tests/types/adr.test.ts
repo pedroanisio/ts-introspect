@@ -8,7 +8,7 @@ import {
   adrToMarkdown,
   adrsToTable,
   type Adr
-} from '../../src/types/adr.js';
+} from '@/types/adr.js';
 
 describe('ADR Types', () => {
   const validAdr: Adr = {

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { IntrospectionRegistry } from '../../src/core/registry.js';
-import type { FileMetadata } from '../../src/types/metadata.js';
+import { IntrospectionRegistry } from '@/core/registry.js';
+import type { FileMetadata } from '@/types/metadata.js';
 
 describe('IntrospectionRegistry', () => {
   let tempDir: string;

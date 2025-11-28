@@ -14,6 +14,7 @@ export type TodoStatus = 'pending' | 'in-progress' | 'blocked' | 'done';
 export type FixSeverity = 'critical' | 'major' | 'minor' | 'trivial';
 export type FixStatus = 'open' | 'investigating' | 'fixed';
 export type ModuleStatus = 'stable' | 'beta' | 'experimental' | 'deprecated';
+export type ComponentType = 'page' | 'layout' | 'feature' | 'ui' | 'provider' | 'hoc' | 'hook';
 
 // ============================================
 // Issue Tracking
@@ -63,6 +64,45 @@ export interface DependencyInfo {
 }
 
 // ============================================
+// React-Specific Types
+// ============================================
+
+export interface PropInfo {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+}
+
+export interface HookInfo {
+  name: string;
+  isCustom: boolean;
+  dependencies?: string[];
+}
+
+export interface ReactInfo {
+  /** Component classification */
+  componentType?: ComponentType;
+  /** Props interface name and details */
+  props?: {
+    interfaceName: string;
+    properties: PropInfo[];
+  };
+  /** Hooks used by this component */
+  hooks?: HookInfo[];
+  /** Context providers consumed */
+  contexts?: string[];
+  /** State management (redux, zustand, etc.) */
+  stateManagement?: string[];
+  /** Child components rendered */
+  renders?: string[];
+  /** Whether component uses forwardRef */
+  forwardRef?: boolean;
+  /** Whether component is memoized */
+  memoized?: boolean;
+}
+
+// ============================================
 // Internal Metadata (Auto-managed)
 // ============================================
 
@@ -107,6 +147,9 @@ export interface FileMetadata {
   notes?: string;
   seeAlso?: string[];
   tags?: string[];
+
+  // React-specific (for .tsx files)
+  react?: ReactInfo;
 
   // Internal (auto-managed)
   _meta: InternalMeta;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { generateMetadataStub, generateMetadataObject } from '../../src/generators/stub.js';
+import { generateMetadataStub, generateMetadataObject } from '@/generators/stub.js';
 
 describe('Stub Generator', () => {
   let tempDir: string;
