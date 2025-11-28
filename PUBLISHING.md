@@ -252,7 +252,42 @@ https://github.com/neo-dom-agent/ts-introspect/compare/v0.9.0...v1.0.0
 
 ## 7. Complete Release Workflow
 
-### Step-by-Step Release Process
+### Automated Release (Recommended)
+
+The release script handles everything: validation, version bump, git tag, GitHub release, and npm publish.
+
+```bash
+# Patch release (1.0.0 → 1.0.1) - bug fixes
+npm run release:patch
+
+# Minor release (1.0.0 → 1.1.0) - new features
+npm run release:minor
+
+# Major release (1.0.0 → 2.0.0) - breaking changes
+npm run release:major
+
+# Or with argument
+npm run release -- patch
+```
+
+**What the script does:**
+
+1. ✓ Verifies clean working directory
+2. ✓ Verifies on `main` branch
+3. ✓ Verifies up to date with remote
+4. ✓ Runs `npm run validate`
+5. ✓ Bumps version (creates git commit + tag)
+6. ✓ Pushes commits and tags to GitHub
+7. ✓ Creates GitHub release with auto-generated notes
+8. ✓ Publishes to npm
+
+**Requirements:**
+- GitHub CLI (`gh`) installed and authenticated
+- npm logged in (`npm login`)
+
+### Manual Step-by-Step Release
+
+If you prefer manual control:
 
 ```bash
 # 1. Ensure you're on main and up to date
