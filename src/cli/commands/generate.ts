@@ -459,6 +459,7 @@ function generateMetadataStub(options: {
 // ============================================
 // FILE INTROSPECTION METADATA
 // ============================================
+/** @internal Metadata for tooling - not imported by application code */
 export const __metadata = {
   module: '${relativePath}',
   filename: '${filename}',

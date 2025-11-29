@@ -15,12 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Knip integration** - Generated `__metadata` exports now include `@internal` JSDoc tag to prevent false-positive "unused export" warnings in Knip
+  - Both `tsi generate` (new files) and `tsi generate --overwrite` (existing files) now add the tag
 - **Knip documentation** - Added "Knip Integration" section to README explaining the `tags: ["-@internal"]` configuration
 
 ### Changed
 
 - Updated `knip.json` with `tags` configuration to ignore `@internal` exports
 - Updated `templates/metadata.template.ts` with `@internal` JSDoc tag
+- Updated `src/generators/stub.ts` (programmatic API) and `src/cli/commands/generate.ts` (CLI) with `@internal` JSDoc tag
 
 ## [1.0.0] - 2025-11-28
 
