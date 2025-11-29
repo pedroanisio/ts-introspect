@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Self-dependency bug** - Removed erroneous self-reference (`ts-introspect`) from package dependencies
 - **VERSION constant drift** - Synchronized `VERSION` exports in `src/index.ts` and `src/cli/output.ts` with `package.json`
+- **Hash calculation with JSDoc** - Fixed hasher to strip `@internal` JSDoc comments when calculating content hash, preventing false stale-hash errors
 
 ### Added
 
 - **Knip integration** - Generated `__metadata` exports now include `@internal` JSDoc tag to prevent false-positive "unused export" warnings in Knip
   - Both `tsi generate` (new files) and `tsi generate --overwrite` (existing files) now add the tag
 - **Knip documentation** - Added "Knip Integration" section to README explaining the `tags: ["-@internal"]` configuration
+- **Hash regression tests** - Added tests to ensure JSDoc tags on metadata don't affect content hash calculation
+- **CLI integration tests** - Added comprehensive tests for all CLI commands (32 tests) to prevent publishing with broken commands
+- **Enhanced pre-commit hook** - Now runs both metadata validation AND tests before commit
 
 ### Changed
 
@@ -91,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - tslog-based logging (ADR-001)
   - TypeScript strict mode (ADR-002)
   - Knip for dead code detection (ADR-003)
-  - Comprehensive test suite (165 tests)
+  - Comprehensive test suite (200 tests)
 
 [1.0.3]: https://github.com/pedroanisio/ts-introspect/releases/tag/v1.0.3
 [1.0.0]: https://github.com/pedroanisio/ts-introspect/releases/tag/v1.0.0

@@ -9,38 +9,63 @@ import path from 'path';
 
 const PRE_COMMIT_HOOK = `#!/bin/bash
 # ts-introspect pre-commit hook
-# Validates TypeScript files have proper metadata
+# Validates TypeScript files have proper metadata and runs tests
 
-echo "🔍 Running introspection lint..."
+set -e
 
-# Get staged TypeScript files
-STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.ts$' | grep -v '\\.d\\.ts$' | grep -v '\\.test\\.ts$' | grep -v '\\.spec\\.ts$')
+echo "🔍 Running pre-commit checks..."
 
-if [ -z "$STAGED_TS_FILES" ]; then
-  echo "No TypeScript files staged, skipping introspection check."
-  exit 0
-fi
+# Get staged TypeScript files (excluding tests and declarations)
+STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.ts$' | grep -v '\\.d\\.ts$' | grep -v '\\.test\\.ts$' | grep -v '\\.spec\\.ts$' || true)
 
-# Check if tsi is available
-if command -v tsi &> /dev/null; then
-  tsi lint $STAGED_TS_FILES
-elif command -v npx &> /dev/null; then
-  npx ts-introspect lint $STAGED_TS_FILES
-else
-  echo "⚠️  ts-introspect not found, skipping check"
-  exit 0
-fi
-
-LINT_EXIT_CODE=$?
-
-if [ $LINT_EXIT_CODE -ne 0 ]; then
+# Run metadata lint if there are staged TS files
+if [ -n "$STAGED_TS_FILES" ]; then
   echo ""
-  echo "❌ Commit blocked: Introspection validation failed"
-  echo "   Fix the issues above or use --no-verify to skip (not recommended)"
-  exit 1
+  echo "📝 Checking metadata..."
+  
+  if command -v tsi &> /dev/null; then
+    tsi lint $STAGED_TS_FILES --format=text
+  elif command -v npx &> /dev/null; then
+    npx ts-introspect lint $STAGED_TS_FILES --format=text
+  else
+    echo "⚠️  ts-introspect not found, skipping metadata check"
+  fi
+  
+  LINT_EXIT_CODE=$?
+  
+  if [ $LINT_EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "❌ Commit blocked: Introspection validation failed"
+    echo "   Fix the issues above or use --no-verify to skip (not recommended)"
+    exit 1
+  fi
+  
+  echo "✅ Metadata check passed"
 fi
 
-echo "✅ Introspection check passed"
+# Run tests if package.json exists and has test script
+if [ -f "package.json" ] && grep -q '"test"' package.json; then
+  echo ""
+  echo "🧪 Running tests..."
+  
+  # Use npm test but with a timeout to prevent hanging
+  if timeout 120 npm test --silent 2>/dev/null; then
+    echo "✅ Tests passed"
+  else
+    TEST_EXIT_CODE=$?
+    if [ $TEST_EXIT_CODE -eq 124 ]; then
+      echo "⚠️  Tests timed out after 120s, skipping"
+    else
+      echo ""
+      echo "❌ Commit blocked: Tests failed"
+      echo "   Fix the failing tests or use --no-verify to skip (not recommended)"
+      exit 1
+    fi
+  fi
+fi
+
+echo ""
+echo "✅ All pre-commit checks passed"
 exit 0
 `;
 

@@ -24,15 +24,17 @@ export function generateContentHashFromString(content: string): string {
   // Supports both formats:
   //   - `export const __metadata = { ... };`
   //   - `export const __metadata = { ... } as const;`
+  // Also handles optional JSDoc comment (e.g., /** @internal */)
   const codeOnly = content
     // Format 1: With header comments (FILE INTROSPECTION or FILE INTROSPECTION METADATA)
+    // Optional JSDoc comment before export (for @internal tag)
     .replace(
-      /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\nexport const __metadata[\s\S]*?\n\}(?:\s*as\s+const)?;/m,
+      /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[\s\S]*?\n\}(?:\s*as\s+const)?;/m,
       ''
     )
-    // Format 2: Without header comments
+    // Format 2: Without header comments (but with optional JSDoc)
     .replace(
-      /export const __metadata[^=]*=\s*\{[\s\S]*?\n\}(?:\s*as\s+const)?;/m,
+      /(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[^=]*=\s*\{[\s\S]*?\n\}(?:\s*as\s+const)?;/m,
       ''
     );
 
