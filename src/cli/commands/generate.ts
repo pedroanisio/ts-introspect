@@ -489,17 +489,21 @@ export const __metadata = {
 /**
  * Remove all existing metadata blocks from content
  * This prevents duplicates when overwriting
+ * 
+ * IMPORTANT: These patterns MUST match the patterns in src/core/hasher.ts
+ * to ensure consistent hash calculation.
  */
 function removeExistingMetadata(content: string): string {
   // Remove metadata blocks with header comments (FILE INTROSPECTION or FILE INTROSPECTION METADATA)
+  // Also handles optional JSDoc comment (e.g., /** @internal */)
   let cleaned = content.replace(
-    /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\nexport const __metadata[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
+    /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
     ''
   );
   
-  // Remove metadata blocks without header comments
+  // Remove metadata blocks without header comments (but with optional JSDoc)
   cleaned = cleaned.replace(
-    /export const __metadata[^=]*=\s*\{[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
+    /(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[^=]*=\s*\{[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
     ''
   );
   

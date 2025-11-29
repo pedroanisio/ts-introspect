@@ -695,5 +695,105 @@ export const __metadata: FileMetadata = {
       }
     });
   });
+
+  describe('@internal JSDoc Round-Trip', () => {
+    it('should produce consistent hashes when regenerating metadata with @internal tag', async () => {
+      // This test verifies the fix for the bug where:
+      // 1. `tsi generate --overwrite` writes metadata with @internal JSDoc
+      // 2. `tsi lint` computes a different hash because removeExistingMetadata
+      //    wasn't stripping the @internal JSDoc comment
+      
+      const code = 'export function processData(input: string): string { return input.toUpperCase(); }';
+      const hashOfCode = generateContentHashFromString(code);
+      
+      // Simulate what generate.ts does:
+      // 1. Start with code that has OLD metadata (without @internal)
+      const oldMetadata = `${code}
+
+// ============================================
+// FILE INTROSPECTION
+// ============================================
+export const __metadata = {
+  module: 'processor',
+  _meta: { contentHash: 'old_hash_12345' }
+};`;
+
+      // 2. Generate writes NEW metadata with @internal
+      const newMetadata = `${code}
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal Metadata for tooling - not imported by application code */
+export const __metadata = {
+  module: 'processor',
+  _meta: { contentHash: '${hashOfCode}' }
+} as const;`;
+
+      // The hash of the new content should equal the hash of just the code
+      const hashOfNewContent = generateContentHashFromString(newMetadata);
+      expect(hashOfNewContent).toBe(hashOfCode);
+      
+      // Also verify the stored hash matches what we expect
+      const storedHash = /contentHash:\s*['"]([a-f0-9]+)['"]/.exec(newMetadata)?.[1];
+      expect(storedHash).toBe(hashOfCode);
+      expect(hashOfNewContent).toBe(storedHash);
+    });
+
+    it('should validate successfully after generate --overwrite adds @internal tag', async () => {
+      // Create file with old-style metadata (no @internal) and WRONG hash
+      const code = 'export const CONFIG = { debug: false };';
+      
+      const filepath = path.join(srcDir, 'config.ts');
+      
+      // First write just the code to get the correct hash
+      fs.writeFileSync(filepath, code);
+      const correctHash = generateContentHash(filepath);
+      
+      // Now write with WRONG hash - this should trigger stale-hash error
+      const wrongHash = 'deadbeef12345678';
+      fs.writeFileSync(filepath, `${code}
+
+// ============================================
+// FILE INTROSPECTION
+// ============================================
+export const __metadata = {
+  module: 'config',
+  filename: 'config.ts',
+  description: 'Config file',
+  status: 'stable',
+  updatedAt: '2025-01-01',
+  _meta: { contentHash: '${wrongHash}' }
+};`);
+
+      // Verify lint fails with stale hash
+      const validator = new Validator({ srcDir });
+      const resultBefore = await validator.lintFile(filepath);
+      expect(resultBefore.errors.some(e => e.rule === 'metadata/stale-hash')).toBe(true);
+      
+      // Now simulate what generate --overwrite does:
+      // Write new content with @internal and CORRECT hash
+      const newContent = `${code}
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal Metadata for tooling - not imported by application code */
+export const __metadata = {
+  module: 'config',
+  filename: 'config.ts',
+  description: 'Config file',
+  status: 'stable',
+  updatedAt: '2025-11-29',
+  _meta: { contentHash: '${correctHash}' }
+} as const;`;
+
+      fs.writeFileSync(filepath, newContent);
+      
+      // Now lint should pass - no stale-hash errors
+      const resultAfter = await validator.lintFile(filepath);
+      expect(resultAfter.errors.filter(e => e.rule === 'metadata/stale-hash')).toHaveLength(0);
+    });
+  });
 });
 
