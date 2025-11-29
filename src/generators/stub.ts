@@ -40,6 +40,7 @@ export function generateMetadataStub(options: StubOptions): string {
 // ============================================
 // FILE INTROSPECTION
 // ============================================
+/** @internal Metadata for tooling - not imported by application code */
 export const __metadata: FileMetadata = {
   module: '${relativePath}',
   filename: '${filename}',

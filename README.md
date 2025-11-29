@@ -421,6 +421,21 @@ export default [
 ];
 ```
 
+## Knip Integration
+
+If you use [Knip](https://knip.dev) for detecting unused exports, `__metadata` exports will be flagged as unused since they're not imported by application code—they exist for tooling/introspection only.
+
+**Solution:** The generated `__metadata` exports include a `@internal` JSDoc tag. Configure Knip to ignore `@internal` exports:
+
+```json
+// knip.json
+{
+  "tags": ["-@internal"]
+}
+```
+
+This tells Knip to skip exports marked with `@internal`, eliminating false positives.
+
 ## Programmatic API
 
 ```typescript

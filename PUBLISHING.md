@@ -410,7 +410,7 @@ npm unpublish ts-introspect --force
 | `README.md` | ✅ Exists |
 | `CHANGELOG.md` | ✅ Exists |
 | `npm audit` | ✅ 0 vulnerabilities |
-| Tests | ✅ 147 passing |
+| Tests | ✅ 165 passing |
 
 **Ready to publish!** ✅
 

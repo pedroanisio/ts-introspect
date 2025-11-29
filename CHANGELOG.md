@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-11-29
+
+### Fixed
+
+- **Self-dependency bug** - Removed erroneous self-reference (`ts-introspect`) from package dependencies
+- **VERSION constant drift** - Synchronized `VERSION` exports in `src/index.ts` and `src/cli/output.ts` with `package.json`
+
+### Added
+
+- **Knip integration** - Generated `__metadata` exports now include `@internal` JSDoc tag to prevent false-positive "unused export" warnings in Knip
+- **Knip documentation** - Added "Knip Integration" section to README explaining the `tags: ["-@internal"]` configuration
+
+### Changed
+
+- Updated `knip.json` with `tags` configuration to ignore `@internal` exports
+- Updated `templates/metadata.template.ts` with `@internal` JSDoc tag
+
 ## [1.0.0] - 2025-11-28
 
 ### Added
@@ -72,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - tslog-based logging (ADR-001)
   - TypeScript strict mode (ADR-002)
   - Knip for dead code detection (ADR-003)
-  - Comprehensive test suite (147 tests)
+  - Comprehensive test suite (165 tests)
 
+[1.0.3]: https://github.com/pedroanisio/ts-introspect/releases/tag/v1.0.3
 [1.0.0]: https://github.com/pedroanisio/ts-introspect/releases/tag/v1.0.0
 

@@ -9,6 +9,7 @@ import type { FileMetadata } from 'ts-introspect/types';
 // ============================================
 // FILE INTROSPECTION
 // ============================================
+/** @internal Metadata for tooling - not imported by application code */
 export const __metadata: FileMetadata = {
   // Identity
   module: '{{MODULE_PATH}}',
