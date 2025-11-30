@@ -20,7 +20,7 @@ import { stdout, stderr, stderrJson } from './logger.js';
 // Constants
 // ============================================
 
-export const CLI_VERSION = '1.0.9';
+export const CLI_VERSION = '1.0.10';
 export const API_VERSION = 'v1';
 
 // ============================================

@@ -774,6 +774,66 @@ export const CONSTANTS = {
         expect(metadataCount).toBe(1);
       });
 
+      it('should remove orphaned metadata header fragments', () => {
+        // REGRESSION TEST: Files could have orphaned header comments without the actual metadata export
+        // These fragments need to be cleaned up
+        const fileContent = `/**
+ * Blueprint Presets
+ */
+
+import { something } from './something';
+
+export const CONSTANT = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal Metadata for tooling - not imported by application code */
+export const __metadata = {
+  module: 'test',
+  _meta: { contentHash: 'abc123' }
+} as const;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal Metadata for tooling - not imported by application code */
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal Metadata for tooling - not imported by application code */
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        
+        // Should have exactly ONE metadata block
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // Should have exactly ONE FILE INTROSPECTION header
+        const headerCount = (content.match(/FILE INTROSPECTION/g) || []).length;
+        expect(headerCount).toBe(1);
+        
+        // Imports must be preserved
+        expect(content).toContain("import { something } from './something';");
+        
+        // JSDoc must be preserved
+        expect(content).toContain('Blueprint Presets');
+        
+        // Code must be preserved
+        expect(content).toContain('export const CONSTANT = 1;');
+      });
+
       it('should handle file with only JSDoc and imports (no prior metadata)', () => {
         // Edge case: file starts with JSDoc comment before imports
         const fileContent = `/**

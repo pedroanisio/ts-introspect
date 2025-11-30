@@ -516,10 +516,32 @@ function removeExistingMetadata(content: string): string {
     iterations++;
   }
   
+  // Also remove orphaned header fragments (headers without actual metadata export)
+  // These can be left behind by buggy previous versions
+  result = removeOrphanedMetadataHeaders(result);
+  
   // Clean up multiple consecutive empty lines that might result from removal
   result = result.replace(/\n{3,}/g, '\n\n');
   
   return result;
+}
+
+/**
+ * Remove orphaned metadata header comments that don't have an actual metadata export.
+ * These are fragments like:
+ *   // ============================================
+ *   // FILE INTROSPECTION METADATA
+ *   // ============================================
+ *   /** @internal ... * /
+ * 
+ * Without the `export const __metadata = {...}` following them.
+ */
+function removeOrphanedMetadataHeaders(content: string): string {
+  // Pattern matches header comment blocks that are NOT followed by export const __metadata
+  // We look for the header pattern and check what follows
+  const headerPattern = /\n?\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n(?:\/\*\*[^*]*(?:\*(?!\/)[^*]*)*\*\/\s*\n)?(?!export const __metadata)/g;
+  
+  return content.replace(headerPattern, '\n');
 }
 
 /**

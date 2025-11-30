@@ -401,7 +401,7 @@ npm unpublish ts-introspect --force
 | Check | Status |
 |-------|--------|
 | `name` | ✅ `ts-introspect` |
-| `version` | ✅ `1.0.9` |
+| `version` | ✅ `1.0.10` |
 | `license` | ✅ `MIT` |
 | `exports` | ✅ 4 entry points |
 | `files` | ✅ Configured |
