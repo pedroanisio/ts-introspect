@@ -2,6 +2,9 @@
  * Validation Engine
  *
  * Validates TypeScript files have proper, up-to-date metadata
+ * 
+ * Provides both traditional async/promise API and Result-based API
+ * for explicit error handling.
  */
 
 import fs from 'fs';
@@ -11,6 +14,7 @@ import { generateContentHash, extractStoredHash } from './hasher.js';
 import { analyzeDependencies } from './analyzer.js';
 import type { IntrospectConfig, ValidationRules } from '../types/config.js';
 import { DEFAULT_CONFIG } from '../types/config.js';
+import { type Result, Ok, Err, type ResultError } from '../types/result.js';
 
 // ============================================
 // Types
@@ -56,6 +60,21 @@ const RULES: Record<keyof ValidationRules, RuleFunction> = {
       return {
         rule: 'metadata/required',
         message: 'Missing __metadata export',
+        fixable: true
+      };
+    }
+    return null;
+  },
+
+  // ERROR: Duplicate metadata blocks
+  'metadata/duplicate': (_filepath, content) => {
+    const matches = content.match(/export const __metadata/g);
+    const count = matches ? matches.length : 0;
+    
+    if (count > 1) {
+      return {
+        rule: 'metadata/duplicate',
+        message: `Found ${count} duplicate __metadata blocks. Run 'generate --overwrite' to fix.`,
         fixable: true
       };
     }
@@ -340,5 +359,146 @@ export async function validate(config: Partial<IntrospectConfig> = {}): Promise<
 export async function lintFiles(files: string[], config: Partial<IntrospectConfig> = {}): Promise<ValidationResult> {
   const validator = new Validator(config);
   return validator.validate(files);
+}
+
+// ============================================
+// Result-Based API
+// ============================================
+
+/**
+ * Error codes for validation operations
+ */
+export type ValidationErrorCode = 
+  | 'INVALID_FILEPATH'
+  | 'FILE_NOT_FOUND'
+  | 'NOT_A_FILE'
+  | 'NOT_TYPESCRIPT'
+  | 'READ_ERROR'
+  | 'VALIDATION_FAILED';
+
+/**
+ * Validation error with structured data
+ */
+export interface ValidationError extends ResultError {
+  code: ValidationErrorCode;
+  filepath?: string;
+}
+
+/**
+ * Lint a single file using Result pattern
+ * 
+ * @example
+ * ```typescript
+ * const result = await lintFileResult('/path/to/file.ts');
+ * match(result, {
+ *   ok: (lint) => console.log(`Found ${lint.errors.length} errors`),
+ *   err: (error) => console.error(`Failed: ${error.message}`)
+ * });
+ * ```
+ */
+export async function lintFileResult(
+  filepath: string,
+  config: Partial<IntrospectConfig> = {}
+): Promise<Result<LintResult, ValidationError>> {
+  // Input validation
+  if (!filepath || typeof filepath !== 'string') {
+    return Err({
+      code: 'INVALID_FILEPATH',
+      message: `Invalid filepath: ${filepath}`,
+      filepath
+    });
+  }
+
+  if (!fs.existsSync(filepath)) {
+    return Err({
+      code: 'FILE_NOT_FOUND',
+      message: `File does not exist: ${filepath}`,
+      filepath
+    });
+  }
+
+  const stat = fs.statSync(filepath);
+  if (!stat.isFile()) {
+    return Err({
+      code: 'NOT_A_FILE',
+      message: `Path is not a file: ${filepath}`,
+      filepath
+    });
+  }
+
+  if (!filepath.endsWith('.ts') && !filepath.endsWith('.tsx')) {
+    return Err({
+      code: 'NOT_TYPESCRIPT',
+      message: `File is not a TypeScript file: ${filepath}`,
+      filepath
+    });
+  }
+
+  try {
+    const validator = new Validator(config);
+    const result = await validator.lintFile(filepath);
+    return Ok(result);
+  } catch (error) {
+    return Err({
+      code: 'READ_ERROR',
+      message: `Failed to lint file: ${error instanceof Error ? error.message : String(error)}`,
+      filepath
+    });
+  }
+}
+
+/**
+ * Validate files using Result pattern
+ * 
+ * @example
+ * ```typescript
+ * const result = await validateResult();
+ * if (isOk(result)) {
+ *   const { passed, totalErrors } = result.value;
+ *   console.log(`Validation ${passed ? 'passed' : 'failed'} with ${totalErrors} errors`);
+ * }
+ * ```
+ */
+export async function validateResult(
+  config: Partial<IntrospectConfig> = {},
+  specificFiles?: string[]
+): Promise<Result<ValidationResult, ValidationError>> {
+  try {
+    const validator = new Validator(config);
+    const result = await validator.validate(specificFiles);
+    return Ok(result);
+  } catch (error) {
+    return Err({
+      code: 'VALIDATION_FAILED',
+      message: `Validation failed: ${error instanceof Error ? error.message : String(error)}`
+    });
+  }
+}
+
+/**
+ * Check if a file has valid metadata using Result pattern
+ * 
+ * Convenience function that returns a simple boolean result.
+ * 
+ * @example
+ * ```typescript
+ * const isValid = await hasValidMetadataResult('/path/to/file.ts');
+ * match(isValid, {
+ *   ok: (valid) => console.log(valid ? 'Valid!' : 'Invalid'),
+ *   err: (e) => console.error(e.message)
+ * });
+ * ```
+ */
+export async function hasValidMetadataResult(
+  filepath: string,
+  config: Partial<IntrospectConfig> = {}
+): Promise<Result<boolean, ValidationError>> {
+  const result = await lintFileResult(filepath, config);
+  
+  if (result.ok) {
+    return Ok(result.value.errors.length === 0);
+  }
+  
+  return result;
 }
 

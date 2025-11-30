@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Validator, validate, lintFiles } from '@/core/validator.js';
+import { Validator, validate, lintFiles, lintFileResult, validateResult, hasValidMetadataResult } from '@/core/validator.js';
 import { generateContentHashFromString } from '@/core/hasher.js';
+import { isOk, isErr, unwrap, unwrapErr, match } from '@/types/result.js';
 
 describe('Validator', () => {
   let tempDir: string;
@@ -94,6 +95,56 @@ export const __metadata = {
       const result = await validator.lintFile(testFile);
 
       expect(result.errors.some(e => e.rule === 'metadata/required-fields')).toBe(true);
+    });
+
+    it('should error on duplicate __metadata blocks', async () => {
+      const testFile = path.join(srcDir, 'test.ts');
+      fs.writeFileSync(testFile, `
+export const x = 1;
+
+export const __metadata = {
+  module: 'test',
+  filename: 'test.ts',
+  description: 'Test',
+  status: 'stable',
+  updatedAt: '2025-11-30',
+  _meta: { contentHash: 'abc' }
+};
+
+export const __metadata = { module: 'duplicate' };
+
+export const __metadata = { module: 'another-duplicate' };
+`);
+
+      const validator = new Validator({ srcDir });
+      const result = await validator.lintFile(testFile);
+
+      const duplicateError = result.errors.find(e => e.rule === 'metadata/duplicate');
+      expect(duplicateError).toBeDefined();
+      expect(duplicateError?.message).toContain('3 duplicate');
+      expect(duplicateError?.fixable).toBe(true);
+    });
+
+    it('should not error on single __metadata block', async () => {
+      const code = 'export const x = 1;';
+      const hash = generateContentHashFromString(code);
+      const testFile = path.join(srcDir, 'test.ts');
+      fs.writeFileSync(testFile, `${code}
+
+export const __metadata = {
+  module: 'test',
+  filename: 'test.ts',
+  description: 'Test',
+  status: 'stable',
+  updatedAt: '2025-11-30',
+  _meta: { contentHash: '${hash}' }
+};
+`);
+
+      const validator = new Validator({ srcDir });
+      const result = await validator.lintFile(testFile);
+
+      expect(result.errors.some(e => e.rule === 'metadata/duplicate')).toBe(false);
     });
 
     it('should warn on inline TODOs not in metadata', async () => {
@@ -213,6 +264,153 @@ export const __metadata = {
       const result = await lintFiles([testFile], { srcDir });
 
       expect(result.totalErrors).toBe(1);
+    });
+  });
+
+  describe('Result-based API', () => {
+    describe('lintFileResult', () => {
+      it('should return Ok for valid file', async () => {
+        const code = 'export class MyClass {}';
+        const hash = generateContentHashFromString(code);
+        const testFile = path.join(srcDir, 'test.ts');
+        fs.writeFileSync(testFile, `${code}
+
+export const __metadata = {
+  module: 'test',
+  filename: 'test.ts',
+  description: 'Test',
+  status: 'stable',
+  updatedAt: '2025-11-26',
+  _meta: { contentHash: '${hash}' }
+};
+`);
+
+        const result = await lintFileResult(testFile, { srcDir });
+
+        expect(isOk(result)).toBe(true);
+        if (isOk(result)) {
+          expect(result.value.errors).toHaveLength(0);
+        }
+      });
+
+      it('should return Err for invalid filepath', async () => {
+        const result = await lintFileResult('');
+
+        expect(isErr(result)).toBe(true);
+        if (isErr(result)) {
+          expect(result.error.code).toBe('INVALID_FILEPATH');
+        }
+      });
+
+      it('should return Err for non-existent file', async () => {
+        const result = await lintFileResult('/nonexistent/file.ts');
+
+        expect(isErr(result)).toBe(true);
+        if (isErr(result)) {
+          expect(result.error.code).toBe('FILE_NOT_FOUND');
+        }
+      });
+
+      it('should return Err for non-typescript file', async () => {
+        const jsFile = path.join(srcDir, 'test.js');
+        fs.writeFileSync(jsFile, 'export const x = 1;');
+
+        const result = await lintFileResult(jsFile);
+
+        expect(isErr(result)).toBe(true);
+        if (isErr(result)) {
+          expect(result.error.code).toBe('NOT_TYPESCRIPT');
+        }
+      });
+
+      it('should return Err for directory path', async () => {
+        const result = await lintFileResult(srcDir);
+
+        expect(isErr(result)).toBe(true);
+        if (isErr(result)) {
+          expect(result.error.code).toBe('NOT_A_FILE');
+        }
+      });
+
+      it('should work with match function', async () => {
+        const testFile = path.join(srcDir, 'test.ts');
+        fs.writeFileSync(testFile, 'export const x = 1;');
+
+        const result = await lintFileResult(testFile, { srcDir });
+
+        const output = match(result, {
+          ok: (lint) => `Found ${lint.errors.length} errors`,
+          err: (e) => `Error: ${e.code}`
+        });
+
+        expect(output).toBe('Found 1 errors');
+      });
+    });
+
+    describe('validateResult', () => {
+      it('should return Ok with validation result', async () => {
+        fs.writeFileSync(path.join(srcDir, 'test.ts'), 'export const x = 1;');
+
+        const result = await validateResult({ srcDir });
+
+        expect(isOk(result)).toBe(true);
+        if (isOk(result)) {
+          expect(result.value.totalErrors).toBeGreaterThan(0);
+        }
+      });
+
+      it('should return Ok even when validation finds errors', async () => {
+        fs.writeFileSync(path.join(srcDir, 'test.ts'), 'export const x = 1;');
+
+        const result = await validateResult({ srcDir });
+
+        // The function itself succeeds even if validation fails
+        expect(isOk(result)).toBe(true);
+        if (isOk(result)) {
+          expect(result.value.passed).toBe(false);
+        }
+      });
+    });
+
+    describe('hasValidMetadataResult', () => {
+      it('should return Ok(true) for valid file', async () => {
+        const code = 'export class MyClass {}';
+        const hash = generateContentHashFromString(code);
+        const testFile = path.join(srcDir, 'test.ts');
+        fs.writeFileSync(testFile, `${code}
+
+export const __metadata = {
+  module: 'test',
+  filename: 'test.ts',
+  description: 'Test',
+  status: 'stable',
+  updatedAt: '2025-11-26',
+  _meta: { contentHash: '${hash}' }
+};
+`);
+
+        const result = await hasValidMetadataResult(testFile, { srcDir });
+
+        expect(isOk(result)).toBe(true);
+        expect(unwrap(result)).toBe(true);
+      });
+
+      it('should return Ok(false) for invalid file', async () => {
+        const testFile = path.join(srcDir, 'test.ts');
+        fs.writeFileSync(testFile, 'export const x = 1;');
+
+        const result = await hasValidMetadataResult(testFile, { srcDir });
+
+        expect(isOk(result)).toBe(true);
+        expect(unwrap(result)).toBe(false);
+      });
+
+      it('should return Err for non-existent file', async () => {
+        const result = await hasValidMetadataResult('/nonexistent/file.ts');
+
+        expect(isErr(result)).toBe(true);
+        expect(unwrapErr(result).code).toBe('FILE_NOT_FOUND');
+      });
     });
   });
 });

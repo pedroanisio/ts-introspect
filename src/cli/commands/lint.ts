@@ -6,11 +6,10 @@
  * Uses tslog per ADR-001
  */
 
-import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { Validator, type ValidationResult } from '../../core/validator.js';
-import { DEFAULT_CONFIG, type IntrospectConfig } from '../../types/config.js';
+import { ConfigService } from '../../core/config-service.js';
 import {
   outputJson,
   success,
@@ -35,10 +34,11 @@ export async function lintCommand(
 ): Promise<void> {
   const format = options.format ?? 'json';
 
-  // Load config
-  let config: IntrospectConfig;
+  // Load config using ConfigService
+  const configService = ConfigService.getInstance();
+  let config;
   try {
-    config = loadConfig(options.config);
+    config = configService.load(options.config);
   } catch (err) {
     outputError(
       ErrorCode.CONFIG_ERROR,
@@ -85,31 +85,6 @@ export async function lintCommand(
   if (!result.passed) {
     process.exit(ExitCode.USER_ERROR);
   }
-}
-
-function loadConfig(configPath?: string): IntrospectConfig {
-  const paths = configPath
-    ? [path.resolve(process.cwd(), configPath)]
-    : [
-      path.resolve(process.cwd(), 'introspect.config.json'),
-      path.resolve(process.cwd(), '.introspectrc.json'),
-      path.resolve(process.cwd(), '.introspectrc')
-    ];
-
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      const content = fs.readFileSync(p, 'utf-8');
-      const userConfig = JSON.parse(content) as Partial<IntrospectConfig>;
-      return {
-        ...DEFAULT_CONFIG,
-        ...userConfig,
-        rules: { ...DEFAULT_CONFIG.rules, ...userConfig.rules },
-        hooks: { ...DEFAULT_CONFIG.hooks, ...userConfig.hooks }
-      };
-    }
-  }
-
-  return DEFAULT_CONFIG;
 }
 
 function outputJsonResult(result: ValidationResult): void {

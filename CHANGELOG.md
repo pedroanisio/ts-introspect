@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.7] - 2025-11-30
+
+### Added
+
+- **MetadataBuilder Pattern** - Fluent builder API for generating metadata stubs programmatically
+  - Method chaining for all metadata fields
+  - React component support (props, hooks, contexts, renders)
+  - `build()` for TypeScript code, `buildObject()` for JS objects
+  - `generateMetadataStubWithBuilder()` export for programmatic use
+
+- **Result Pattern** - Type-safe error handling without exceptions
+  - `Ok<T>` and `Err<E>` constructors
+  - Type guards: `isOk()`, `isErr()`
+  - Unwrap utilities: `unwrap()`, `unwrapOr()`, `unwrapErr()`
+  - Transformations: `map()`, `mapErr()`, `andThen()`, `orElse()`
+  - Pattern matching: `match()`
+  - Error wrapping: `tryCatch()`, `tryCatchAsync()`, `collect()`
+
+- **Result-based Validation API** - Alternative validation functions returning `Result<T, E>`
+  - `lintFileResult()` - Lint a single file with explicit error handling
+  - `validateResult()` - Validate project with Result wrapper
+  - `hasValidMetadataResult()` - Quick validity check returning Result
+
+- **ConfigService** - Centralized configuration management (Singleton pattern)
+  - `ConfigService.getInstance()` for accessing config
+  - Automatic config file discovery and loading
+  - Config caching with invalidation support
+
+- **Output Formatters** - Strategy pattern for flexible output formatting
+  - `JsonFormatter`, `TableFormatter`, `TextFormatter`, `MarkdownFormatter`
+  - `getFormatter()` factory function
+  - Specialized `LintResultFormatter` and `ReportFormatter`
+
+- **RuleRegistry** - Plugin system for lint rules
+  - `RuleRegistry.getInstance()` for rule management
+  - `register()`, `unregister()`, `getRule()`, `getAllRules()`
+  - Built-in rule loading
+  - External rule loading support
+
+### Changed
+
+- Test suite expanded from 297 to 384 tests
+
 ## [1.0.3] - 2025-11-29
 
 ### Fixed

@@ -12,7 +12,7 @@ import chalk from 'chalk';
 import { glob } from 'glob';
 import { IntrospectionRegistry } from '../../core/registry.js';
 import { DependencyAnalyzer } from '../../core/analyzer.js';
-import { DEFAULT_CONFIG } from '../../types/config.js';
+import { ConfigService } from '../../core/config-service.js';
 import { generateHtmlReport, generateReportData } from '../../generators/html-report.js';
 import {
   outputJson,
@@ -35,7 +35,7 @@ interface ReportOptions {
 export async function reportCommand(options: ReportOptions): Promise<void> {
   const format = options.format ?? 'json';
   const registry = new IntrospectionRegistry();
-  const srcDir = path.resolve(process.cwd(), DEFAULT_CONFIG.srcDir);
+  const srcDir = ConfigService.getInstance().getSrcDir();
 
   if (isHumanFormat(format)) {
     human.info('\n📊 Loading project metadata...\n');

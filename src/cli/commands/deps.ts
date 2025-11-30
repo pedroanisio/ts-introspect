@@ -9,7 +9,7 @@
 import path from 'path';
 import chalk from 'chalk';
 import { DependencyAnalyzer, analyzeDependencies } from '../../core/analyzer.js';
-import { DEFAULT_CONFIG } from '../../types/config.js';
+import { ConfigService } from '../../core/config-service.js';
 import {
   outputJson,
   success,
@@ -34,7 +34,7 @@ export async function depsCommand(
   options: DepsOptions
 ): Promise<void> {
   const format = options.format ?? 'json';
-  const srcDir = path.resolve(process.cwd(), DEFAULT_CONFIG.srcDir);
+  const srcDir = ConfigService.getInstance().getSrcDir();
   const analyzer = new DependencyAnalyzer(srcDir);
 
   if (isHumanFormat(format)) {

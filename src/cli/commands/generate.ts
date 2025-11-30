@@ -2,6 +2,10 @@
  * Generate Command
  *
  * Generate metadata stubs for files
+ * 
+ * Supports two generation modes:
+ * - Legacy string concatenation (default, full feature set)
+ * - MetadataBuilder pattern (optional, cleaner API for simple cases)
  */
 
 import fs from 'fs';
@@ -11,7 +15,8 @@ import { glob } from 'glob';
 import * as ts from 'typescript';
 import { generateContentHash } from '../../core/hasher.js';
 import { analyzeDependencies, analyzeExports, analyzeReactComponent } from '../../core/analyzer.js';
-import { DEFAULT_CONFIG } from '../../types/config.js';
+import { ConfigService } from '../../core/config-service.js';
+import { MetadataBuilder } from '../../generators/metadata-builder.js';
 import type { FileMetadata, ReactInfo } from '../../types/metadata.js';
 import { stdout } from '../logger.js';
 
@@ -46,6 +51,11 @@ export async function generateCommand(
 ): Promise<void> {
   stdout(chalk.blue('\n📝 Generating metadata stubs...\n'));
 
+  // Get config from ConfigService
+  const configService = ConfigService.getInstance();
+  const config = configService.getConfig();
+  const srcDir = configService.getSrcDir();
+
   let targetFiles: string[];
 
   if (files && files.length > 0) {
@@ -63,9 +73,9 @@ export async function generateCommand(
       const stat = fs.statSync(resolved);
       if (stat.isDirectory()) {
         // Glob for TypeScript files in directory
-        const dirFiles = await glob(DEFAULT_CONFIG.include, {
+        const dirFiles = await glob(config.include, {
           cwd: resolved,
-          ignore: DEFAULT_CONFIG.exclude,
+          ignore: config.exclude,
           absolute: true
         });
         expandedFiles.push(...dirFiles);
@@ -77,11 +87,9 @@ export async function generateCommand(
     targetFiles = expandedFiles;
   } else {
     // Find all TypeScript files without metadata
-    const srcDir = path.resolve(process.cwd(), DEFAULT_CONFIG.srcDir);
-
-    targetFiles = await glob(DEFAULT_CONFIG.include, {
+    targetFiles = await glob(config.include, {
       cwd: srcDir,
-      ignore: DEFAULT_CONFIG.exclude,
+      ignore: config.exclude,
       absolute: true
     });
   }
@@ -159,7 +167,6 @@ export async function generateCommand(
     }
 
     // Generate or update metadata stub
-    const srcDir = path.resolve(process.cwd(), DEFAULT_CONFIG.srcDir);
     const existingMetadata = extractExistingMetadata(content, filepath, srcDir);
     const stub = generateMetadataStub({
       filepath,
@@ -490,27 +497,127 @@ export const __metadata = {
  * Remove all existing metadata blocks from content
  * This prevents duplicates when overwriting
  * 
- * IMPORTANT: These patterns MUST match the patterns in src/core/hasher.ts
- * to ensure consistent hash calculation.
+ * Uses brace counting to properly handle nested objects within metadata blocks,
+ * avoiding issues where regex patterns prematurely match inner closing braces.
  */
 function removeExistingMetadata(content: string): string {
-  // Remove metadata blocks with header comments (FILE INTROSPECTION or FILE INTROSPECTION METADATA)
-  // Also handles optional JSDoc comment (e.g., /** @internal */)
-  let cleaned = content.replace(
-    /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
-    ''
-  );
+  let result = content;
+  let iterations = 0;
+  const maxIterations = 20; // Safety limit to prevent infinite loops
   
-  // Remove metadata blocks without header comments (but with optional JSDoc)
-  cleaned = cleaned.replace(
-    /(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata[^=]*=\s*\{[\s\S]*?\n\}(?:\s*as\s+const)?;/gm,
-    ''
-  );
+  // Keep removing metadata blocks until none are found
+  // This handles cases where multiple blocks exist
+  while (iterations < maxIterations) {
+    const blockInfo = findMetadataBlock(result);
+    if (!blockInfo) {break;}
+    
+    // Remove the block
+    result = result.substring(0, blockInfo.start) + result.substring(blockInfo.end);
+    iterations++;
+  }
   
   // Clean up multiple consecutive empty lines that might result from removal
-  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  result = result.replace(/\n{3,}/g, '\n\n');
   
-  return cleaned;
+  return result;
+}
+
+/**
+ * Find the boundaries of a single metadata block using brace counting.
+ * Returns the start and end positions, or null if no block found.
+ */
+function findMetadataBlock(content: string): { start: number; end: number } | null {
+  // Pattern to find the start of a metadata block
+  // Matches: optional header comments, optional JSDoc, then `export const __metadata`
+  const headerPattern = /(?:\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n)?(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata/;
+  
+  const match = headerPattern.exec(content);
+  if (!match) {return null;}
+  
+  const blockStart = match.index;
+  const afterDeclaration = match.index + match[0].length;
+  
+  // Find the opening brace of the metadata object
+  let braceStart = -1;
+  for (let i = afterDeclaration; i < content.length; i++) {
+    const char = content[i];
+    if (char === '{') {
+      braceStart = i;
+      break;
+    }
+    // If we hit a newline without finding '{', something is wrong
+    if (char === '\n' && i > afterDeclaration + 50) {break;}
+  }
+  
+  if (braceStart === -1) {return null;}
+  
+  // Count braces to find the matching closing brace
+  let braceCount = 1;
+  let i = braceStart + 1;
+  let inString = false;
+  let stringChar = '';
+  let escaped = false;
+  
+  while (i < content.length && braceCount > 0) {
+    const char = content[i];
+    
+    if (escaped) {
+      escaped = false;
+      i++;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escaped = true;
+      i++;
+      continue;
+    }
+    
+    if (inString) {
+      if (char === stringChar) {
+        inString = false;
+      }
+    } else {
+      if (char === '"' || char === "'" || char === '`') {
+        inString = true;
+        stringChar = char;
+      } else if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+      }
+    }
+    
+    i++;
+  }
+  
+  if (braceCount !== 0) {
+    // Couldn't find matching brace - return null to avoid corrupting the file
+    return null;
+  }
+  
+  // i now points to just after the closing '}'
+  // Look for optional 'as const' and the semicolon
+  let blockEnd = i;
+  const remaining = content.substring(i, i + 20);
+  
+  // Match optional whitespace, optional 'as const', optional whitespace, semicolon
+  const suffixMatch = /^\s*(?:as\s+const)?\s*;/.exec(remaining);
+  if (suffixMatch) {
+    blockEnd = i + suffixMatch[0].length;
+  }
+  
+  // Include any leading blank line that was part of the metadata block separation
+  let adjustedStart = blockStart;
+  if (blockStart > 0 && content[blockStart - 1] === '\n') {
+    adjustedStart = blockStart - 1;
+    // Check for double newline (blank line before block)
+    if (adjustedStart > 0 && content[adjustedStart - 1] === '\n') {
+      adjustedStart = adjustedStart - 1;
+    }
+  }
+  
+  return { start: adjustedStart, end: blockEnd };
 }
 
 function insertMetadata(content: string, stub: string): string {
@@ -574,5 +681,82 @@ function insertMetadata(content: string, stub: string): string {
   result.push(...afterImports);
   
   return result.join('\n');
+}
+
+/**
+ * Generate metadata stub using MetadataBuilder (cleaner alternative)
+ * 
+ * Useful for programmatic usage and simpler cases.
+ * The main generateMetadataStub function is still used by default for
+ * full feature support including preserving existing metadata.
+ * 
+ * @example
+ * ```typescript
+ * const stub = generateMetadataStubWithBuilder({
+ *   filepath: '/path/to/file.ts',
+ *   srcDir: 'src'
+ * });
+ * ```
+ */
+export function generateMetadataStubWithBuilder(options: {
+  filepath: string;
+  srcDir: string;
+}): string {
+  const { filepath, srcDir } = options;
+  const filename = path.basename(filepath);
+  const ext = path.extname(filepath);
+  const relativePath = path.relative(srcDir, filepath).replace(/\.(ts|tsx)$/, '');
+
+  const deps = analyzeDependencies(filepath, srcDir);
+  const exports = analyzeExports(filepath);
+  const hash = generateContentHash(filepath);
+
+  const exportNames = exports
+    .filter(e => e.name !== '__metadata')
+    .map(e => e.name);
+
+  const builder = new MetadataBuilder({
+    module: relativePath,
+    filename
+  })
+    .exports(exportNames)
+    .internalDeps(deps.internal)
+    .externalDeps(deps.external)
+    .typeDeps(deps.types ?? [])
+    .contentHash(hash);
+
+  // React-specific analysis for .tsx files
+  if (ext === '.tsx') {
+    const content = fs.readFileSync(filepath, 'utf-8');
+    const reactInfo = analyzeReactComponent(filepath, content);
+    if (reactInfo) {
+      if (reactInfo.componentType) {
+        builder.componentType(reactInfo.componentType);
+      }
+      if (reactInfo.props) {
+        builder.props(reactInfo.props);
+      }
+      if (reactInfo.hooks && reactInfo.hooks.length > 0) {
+        builder.hooks(reactInfo.hooks);
+      }
+      if (reactInfo.contexts && reactInfo.contexts.length > 0) {
+        builder.contexts(reactInfo.contexts);
+      }
+      if (reactInfo.stateManagement && reactInfo.stateManagement.length > 0) {
+        builder.stateManagement(reactInfo.stateManagement);
+      }
+      if (reactInfo.renders && reactInfo.renders.length > 0) {
+        builder.renders(reactInfo.renders);
+      }
+      if (reactInfo.forwardRef) {
+        builder.forwardRef(reactInfo.forwardRef);
+      }
+      if (reactInfo.memoized) {
+        builder.memoized(reactInfo.memoized);
+      }
+    }
+  }
+
+  return builder.build();
 }
 

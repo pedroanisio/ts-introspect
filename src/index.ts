@@ -91,10 +91,16 @@ export {
   Validator,
   validate,
   lintFiles,
+  // Result-based API
+  lintFileResult,
+  validateResult,
+  hasValidMetadataResult,
   type LintError,
   type LintWarning,
   type LintResult,
-  type ValidationResult
+  type ValidationResult,
+  type ValidationError,
+  type ValidationErrorCode
 } from './core/validator.js';
 
 // Registry
@@ -106,6 +112,44 @@ export {
   type FixWithModule,
   type RegistrySummary
 } from './core/registry.js';
+
+// Config Service
+export {
+  ConfigService,
+  getConfigService,
+  type LoadOptions
+} from './core/config-service.js';
+
+// Rule Registry (Plugin System)
+export {
+  RuleRegistry,
+  getRuleRegistry,
+  createRule,
+  type LintRule,
+  type RuleContext,
+  type RuleResult,
+  type CreateRuleOptions
+} from './core/rule-registry.js';
+
+// Output Formatters
+export {
+  JsonFormatter,
+  TableFormatter,
+  TextFormatter,
+  MarkdownFormatter,
+  getFormatter,
+  type OutputFormatter,
+  type OutputFormatType,
+  type FormatOptions
+} from './cli/formatters/index.js';
+
+export {
+  LintResultFormatter
+} from './cli/formatters/lint-formatter.js';
+
+export {
+  ReportFormatter
+} from './cli/formatters/report-formatter.js';
 
 // ============================================
 // Generators
@@ -133,6 +177,46 @@ export {
   type AdrOptions,
   type AdrTemplate
 } from './generators/adr.js';
+
+// MetadataBuilder
+export {
+  MetadataBuilder,
+  type MetadataBuilderOptions,
+  type PropsInfo,
+  type DependenciesInfo
+} from './generators/metadata-builder.js';
+
+export { generateMetadataStubWithBuilder } from './cli/commands/generate.js';
+
+// ============================================
+// Result Pattern
+// ============================================
+
+export type {
+  Result,
+  OkResult,
+  ErrResult,
+  ResultError,
+  MatchHandlers
+} from './types/result.js';
+
+export {
+  Ok,
+  Err,
+  isOk,
+  isErr,
+  unwrap,
+  unwrapOr,
+  unwrapErr,
+  map,
+  mapErr,
+  andThen,
+  orElse,
+  match,
+  tryCatch,
+  tryCatchAsync,
+  collect
+} from './types/result.js';
 
 // ============================================
 // ADR (Architecture Decision Records)
@@ -168,5 +252,5 @@ export {
 // Version
 // ============================================
 
-export const VERSION = '1.0.4';
+export const VERSION = '1.0.7';
 

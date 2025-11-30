@@ -338,13 +338,19 @@ src/
 │   │   ├── init.ts         # Project initialization
 │   │   ├── lint.ts         # Metadata validation
 │   │   └── report.ts       # Report generation
+│   ├── formatters/         # Output formatters (Strategy Pattern)
+│   │   ├── index.ts        # JSON, Table, Text, Markdown formatters
+│   │   ├── lint-formatter.ts   # Lint result formatting
+│   │   └── report-formatter.ts # Report formatting
 │   ├── index.ts            # CLI entry point
 │   ├── logger.ts           # tslog-based logging (ADR-001)
 │   └── output.ts           # AI-focused JSON output helpers
 ├── core/                   # Core functionality
 │   ├── analyzer.ts         # TypeScript AST analysis for deps & React
+│   ├── config-service.ts   # Configuration management (Singleton)
 │   ├── hasher.ts           # Content hashing for change detection
 │   ├── registry.ts         # Runtime metadata collection & queries
+│   ├── rule-registry.ts    # Lint rule plugin system
 │   └── validator.ts        # Validation rules engine
 ├── eslint/                 # ESLint plugin
 │   └── plugin.ts           # require-metadata & valid-metadata rules
@@ -352,6 +358,7 @@ src/
 │   ├── adr.ts              # ADR markdown generation
 │   ├── graph-visualization.ts  # D3.js dependency graph
 │   ├── html-report.ts      # HTML report with themes
+│   ├── metadata-builder.ts # Fluent builder for metadata stubs
 │   ├── stub.ts             # Metadata stub generation
 │   └── themes/             # Report themes (classic, dark, dracula, etc.)
 ├── hooks/                  # Git hook management
@@ -359,7 +366,8 @@ src/
 ├── types/                  # TypeScript type definitions
 │   ├── adr.ts              # ADR types & JSONL utilities
 │   ├── config.ts           # Configuration schema
-│   └── metadata.ts         # FileMetadata, TodoItem, ReactInfo types
+│   ├── metadata.ts         # FileMetadata, TodoItem, ReactInfo types
+│   └── result.ts           # Result<T,E> pattern for error handling
 └── index.ts                # Public API exports
 ```
 
@@ -473,6 +481,81 @@ if (reactInfo) {
 
 // Build dependency graph
 const graph = await buildDependencyGraph('src');
+```
+
+### MetadataBuilder (Fluent API)
+
+Generate metadata stubs programmatically using a fluent builder pattern:
+
+```typescript
+import { MetadataBuilder } from 'ts-introspect';
+
+const stub = new MetadataBuilder({
+  module: 'services/user-service',
+  filename: 'user-service.ts'
+})
+  .description('User management service')
+  .status('stable')
+  .exports(['UserService', 'createUser'])
+  .internalDeps(['./db', './crypto'])
+  .externalDeps(['bcrypt', 'zod'])
+  .build();  // Returns TypeScript code string
+
+// For React components
+const componentStub = new MetadataBuilder({
+  module: 'components/Button',
+  filename: 'Button.tsx'
+})
+  .description('Reusable button component')
+  .componentType('ui')
+  .props({
+    interfaceName: 'ButtonProps',
+    properties: [
+      { name: 'onClick', type: '() => void', required: true },
+      { name: 'disabled', type: 'boolean', required: false }
+    ]
+  })
+  .hooks([{ name: 'useState', isCustom: false }])
+  .memoized(true)
+  .build();
+```
+
+### Result Pattern (Type-Safe Error Handling)
+
+Handle errors explicitly without exceptions:
+
+```typescript
+import {
+  Ok, Err, isOk, isErr, match, tryCatch,
+  lintFileResult, validateResult, hasValidMetadataResult
+} from 'ts-introspect';
+
+// Result-based validation (no exceptions)
+const result = await lintFileResult('/path/to/file.ts');
+
+if (isOk(result)) {
+  console.log(`Found ${result.value.errors.length} errors`);
+} else {
+  console.error(`Error: ${result.error.code} - ${result.error.message}`);
+}
+
+// Pattern matching
+const output = match(result, {
+  ok: (lint) => `Checked: ${lint.errors.length} errors`,
+  err: (e) => `Failed: ${e.message}`
+});
+
+// Quick validity check
+const isValid = await hasValidMetadataResult(filepath);
+if (isOk(isValid) && isValid.value) {
+  console.log('File has valid metadata');
+}
+
+// Wrap throwing functions
+const parsed = tryCatch(() => JSON.parse(data));
+if (isErr(parsed)) {
+  console.error('Parse failed:', parsed.error);
+}
 ```
 
 ## React Project Best Practices

@@ -255,6 +255,403 @@ export const __metadata = { module: 'old' };`;
       expect(content).toContain('/** @internal');
       expect(content).toContain('export const __metadata');
     });
+
+    it('should remove multiple duplicate metadata blocks with --overwrite', () => {
+      // Simulate a file that has accumulated duplicate metadata blocks
+      const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test',
+  dependencies: {
+    internal: [],
+    external: []
+  }
+} as const;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test-duplicate'
+} as const;
+
+export const __metadata = { module: 'orphan' };`;
+      
+      fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+      
+      const result = runCli('generate --overwrite --format=text', tempDir);
+      expect(result.exitCode).toBe(0);
+      
+      const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+      
+      // Count how many __metadata exports exist
+      const metadataCount = (content.match(/export const __metadata/g) || []).length;
+      expect(metadataCount).toBe(1);
+      
+      // Ensure we still have the original code
+      expect(content).toContain('export const x = 1;');
+    });
+
+    it('should handle metadata with deeply nested objects', () => {
+      // Create a file with metadata that has nested objects
+      const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test',
+  dependencies: {
+    internal: ['./utils'],
+    external: ['react']
+  },
+  react: {
+    componentType: 'functional',
+    props: {
+      interfaceName: 'Props',
+      properties: [
+        { name: 'value', type: 'string', required: true }
+      ]
+    }
+  },
+  _meta: {
+    contentHash: 'abc123',
+    generatedDeps: []
+  }
+} as const;`;
+      
+      fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+      
+      const result = runCli('generate --overwrite --format=text', tempDir);
+      expect(result.exitCode).toBe(0);
+      
+      const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+      
+      // Should have exactly one metadata block
+      const metadataCount = (content.match(/export const __metadata/g) || []).length;
+      expect(metadataCount).toBe(1);
+      
+      // Should not have fragments of old metadata
+      expect(content).not.toContain('componentType: \'functional\'');
+      expect(content).not.toContain('interfaceName: \'Props\'');
+    });
+
+    // Regression tests for duplicate metadata block issue (A1)
+    describe('duplicate metadata regression tests', () => {
+      it('should handle metadata with braces inside strings', () => {
+        // Braces in strings should not confuse the brace counting
+        // This tests that the brace counting correctly ignores braces inside string literals
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'braces-test',
+  description: 'Object with { braces } inside',
+  notes: 'Also handles } single braces and {{{multiple}}}',
+  _meta: {
+    contentHash: 'abc123'
+  }
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        
+        // Key check: exactly one metadata block (braces in strings didn't cause fragments)
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // The old module name should be replaced with the new generated one
+        expect(content).not.toContain("module: 'braces-test'");
+        
+        // Verify the file still has valid structure (export const x should exist once)
+        expect((content.match(/export const x = 1/g) || []).length).toBe(1);
+      });
+
+      it('should handle metadata with template literals containing braces', () => {
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test',
+  description: \`Template with \${'{braces}'} inside\`,
+  _meta: { contentHash: 'abc123' }
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+      });
+
+      it('should handle metadata with escaped quotes in strings', () => {
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test',
+  description: 'String with \\'escaped\\' quotes and "double" quotes',
+  notes: "Also \\"escaped\\" in double quotes",
+  _meta: { contentHash: 'abc123' }
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+      });
+
+      it('should handle mixed format metadata blocks', () => {
+        // Mix of blocks with headers, without headers, with/without JSDoc, with/without as const
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'block1'
+} as const;
+
+/** @internal */
+export const __metadata = {
+  module: 'block2-no-header'
+};
+
+export const __metadata = { module: 'block3-minimal' };
+
+// ============================================
+// FILE INTROSPECTION
+// ============================================
+export const __metadata = {
+  module: 'block4-legacy-header'
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // None of the old modules should remain
+        expect(content).not.toContain("module: 'block1'");
+        expect(content).not.toContain("module: 'block2-no-header'");
+        expect(content).not.toContain("module: 'block3-minimal'");
+        expect(content).not.toContain("module: 'block4-legacy-header'");
+      });
+
+      it('should handle metadata fragments from previous bugs', () => {
+        // Simulate fragments that might be left behind by buggy regex
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'test',
+  _meta: { contentHash: 'abc' }
+} as const;
+
+// Orphaned closing parts (simulate regex failure)
+} as const;
+
+// Another orphan
+};`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+      });
+
+      it('should be idempotent - multiple runs should not create duplicates', () => {
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), 'export const x = 1;');
+        
+        // Run generate multiple times
+        for (let i = 0; i < 5; i++) {
+          const result = runCli('generate --overwrite --format=text', tempDir);
+          expect(result.exitCode).toBe(0);
+        }
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // Original code should still be present
+        expect(content).toContain('export const x = 1;');
+      });
+
+      it('should handle metadata with type annotation', () => {
+        const fileContent = `import type { FileMetadata } from 'ts-introspect/types';
+
+export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata: FileMetadata = {
+  module: 'test',
+  _meta: { contentHash: 'abc123' }
+};`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // Old typed metadata should be removed
+        expect(content).not.toContain(': FileMetadata =');
+      });
+
+      it('should handle closing brace at column 0 in nested object', () => {
+        // This is the exact scenario that caused the original bug
+        // When an inner object's closing brace is at column 0
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'badly-formatted',
+  dependencies: {
+    internal: ['./old-dep']
+}
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // Old module name should be gone (replaced with fresh metadata)
+        expect(content).not.toContain("module: 'badly-formatted'");
+        // Old dependency should be gone
+        expect(content).not.toContain('./old-dep');
+      });
+
+      it('should handle metadata spanning many lines with complex structure', () => {
+        // Large metadata block with many nested structures
+        const fileContent = `export const x = 1;
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'complex-component',
+  filename: 'ComplexComponent.tsx',
+  description: 'A very complex component with lots of metadata',
+  responsibilities: [
+    'Handle user interactions',
+    'Manage local state',
+    'Communicate with parent'
+  ],
+  exports: ['ComplexComponent', 'useComplexHook'],
+  dependencies: {
+    internal: ['./utils', './hooks/useData', '../shared/types'],
+    external: ['react', 'lodash', '@tanstack/react-query'],
+    types: ['Props', 'State', 'Config']
+  },
+  react: {
+    componentType: 'functional',
+    props: {
+      interfaceName: 'ComplexProps',
+      properties: [
+        { name: 'data', type: 'Data[]', required: true },
+        { name: 'onUpdate', type: '(item: Data) => void', required: true },
+        { name: 'config', type: 'Config', required: false }
+      ]
+    },
+    hooks: [
+      { name: 'useState', isCustom: false },
+      { name: 'useEffect', isCustom: false },
+      { name: 'useComplexHook', isCustom: true }
+    ],
+    contexts: ['ThemeContext', 'UserContext'],
+    stateManagement: ['local', 'context'],
+    renders: ['Header', 'Content', 'Footer']
+  },
+  status: 'stable',
+  createdAt: '2024-01-01',
+  updatedAt: '2024-06-15',
+  changelog: [
+    { version: '1.0.0', date: '2024-01-01', changes: ['Initial implementation'] },
+    { version: '1.1.0', date: '2024-03-15', changes: ['Added hooks support', 'Fixed rendering bug'] },
+    { version: '1.2.0', date: '2024-06-15', changes: ['Performance improvements'] }
+  ],
+  todos: [
+    { id: 'TODO-1', description: 'Add tests', priority: 'high', status: 'pending', createdAt: '2024-06-15' }
+  ],
+  fixes: [],
+  notes: 'This component is critical for the main workflow',
+  seeAlso: ['./SimpleComponent', './DataProvider'],
+  tags: ['ui', 'core', 'complex'],
+  _meta: {
+    contentHash: 'abc123def456',
+    lastValidated: '2024-06-15',
+    generatedDeps: ['./utils', './hooks/useData']
+  }
+} as const;`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.ts'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.ts'), 'utf-8');
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+        
+        // None of the old complex metadata should remain
+        expect(content).not.toContain('ComplexComponent');
+        expect(content).not.toContain('useComplexHook');
+        expect(content).not.toContain('ThemeContext');
+      });
+    });
   });
 
   describe('report command', () => {

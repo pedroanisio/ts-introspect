@@ -401,7 +401,7 @@ npm unpublish ts-introspect --force
 | Check | Status |
 |-------|--------|
 | `name` | ✅ `ts-introspect` |
-| `version` | ✅ `1.0.2` |
+| `version` | ✅ `1.0.7` |
 | `license` | ✅ `MIT` |
 | `exports` | ✅ 4 entry points |
 | `files` | ✅ Configured |
@@ -410,7 +410,7 @@ npm unpublish ts-introspect --force
 | `README.md` | ✅ Exists |
 | `CHANGELOG.md` | ✅ Exists |
 | `npm audit` | ✅ 0 vulnerabilities |
-| Tests | ✅ 200 passing |
+| Tests | ✅ 384 passing |
 
 **Ready to publish!** ✅
 

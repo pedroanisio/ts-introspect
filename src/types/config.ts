@@ -14,6 +14,7 @@ export type RuleSeverity = 'error' | 'warn' | 'off';
 
 export interface ValidationRules {
   'metadata/required': RuleSeverity;
+  'metadata/duplicate': RuleSeverity;
   'metadata/stale-hash': RuleSeverity;
   'metadata/required-fields': RuleSeverity;
   'metadata/deps-mismatch': RuleSeverity;
@@ -121,6 +122,7 @@ export const DEFAULT_CONFIG: IntrospectConfig = {
 
   rules: {
     'metadata/required': 'error',
+    'metadata/duplicate': 'error',
     'metadata/stale-hash': 'error',
     'metadata/required-fields': 'error',
     'metadata/deps-mismatch': 'warn',
