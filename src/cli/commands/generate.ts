@@ -525,17 +525,54 @@ function removeExistingMetadata(content: string): string {
 /**
  * Find the boundaries of a single metadata block using brace counting.
  * Returns the start and end positions, or null if no block found.
+ * 
+ * IMPORTANT: This function searches BACKWARDS from `export const __metadata`
+ * to find the block start. This prevents a bug where a file-level JSDoc
+ * comment would be incorrectly matched as part of the metadata block.
+ * 
+ * Previous bug: Using forward-matching regex `(?:\/\*\*[\s\S]*?\*\/)?export const __metadata`
+ * would match from the FIRST `/**` in the file to the metadata export, stripping
+ * file headers and imports.
+ * 
+ * Fix: Anchor on `export const __metadata`, then look backwards for:
+ * 1. Immediate JSDoc (within 200 chars) - uses pattern that matches single JSDoc only
+ * 2. Header comment (within 150 chars of JSDoc/metadata)
  */
 function findMetadataBlock(content: string): { start: number; end: number } | null {
-  // Pattern to find the start of a metadata block
-  // Matches: optional header comments, optional JSDoc, then `export const __metadata`
-  const headerPattern = /(?:\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n)?(?:\/\*\*[\s\S]*?\*\/\s*\n)?export const __metadata/;
+  // First, find `export const __metadata` - this is the anchor point
+  const metadataExportPattern = /export const __metadata/;
+  const metadataMatch = metadataExportPattern.exec(content);
+  if (!metadataMatch) {return null;}
   
-  const match = headerPattern.exec(content);
-  if (!match) {return null;}
+  const metadataStart = metadataMatch.index;
   
-  const blockStart = match.index;
-  const afterDeclaration = match.index + match[0].length;
+  // Now look backwards from the metadata export to find the start of the block
+  // The block may optionally have:
+  // 1. A header comment: // ===...\n// FILE INTROSPECTION...\n// ===...
+  // 2. A JSDoc comment: /** @internal ... */
+  
+  let blockStart = metadataStart;
+  
+  // Check for JSDoc immediately before (within last 200 chars)
+  // Pattern matches a SINGLE JSDoc only - [^*]*(?:\*(?!\/)[^*]*)* matches
+  // any char except *, or * not followed by /, preventing cross-JSDoc matching
+  const beforeMetadata = content.substring(Math.max(0, metadataStart - 200), metadataStart);
+  const jsdocPattern = /\/\*\*[^*]*(?:\*(?!\/)[^*]*)*\*\/\s*$/;
+  const jsdocMatch = jsdocPattern.exec(beforeMetadata);
+  if (jsdocMatch) {
+    blockStart = metadataStart - (beforeMetadata.length - jsdocMatch.index);
+  }
+  
+  // Check for header comment before the JSDoc/metadata
+  const beforeJsdoc = content.substring(Math.max(0, blockStart - 150), blockStart);
+  const headerPattern = /\/\/ =+\s*\n\/\/ FILE INTROSPECTION(?:\s+METADATA)?\s*\n\/\/ =+\s*\n\s*$/;
+  const headerMatch = headerPattern.exec(beforeJsdoc);
+  if (headerMatch) {
+    blockStart = blockStart - (beforeJsdoc.length - headerMatch.index);
+  }
+  
+  // afterDeclaration points to just after `export const __metadata`
+  const afterDeclaration = metadataStart + metadataMatch[0].length;
   
   // Find the opening brace of the metadata object
   let braceStart = -1;

@@ -651,6 +651,162 @@ export const __metadata = {
         expect(content).not.toContain('useComplexHook');
         expect(content).not.toContain('ThemeContext');
       });
+
+      it('should preserve imports when regenerating metadata', () => {
+        // REGRESSION TEST: Imports were being stripped when metadata was regenerated
+        // This test verifies that multi-line imports are preserved
+        const fileContent = `/**
+ * Error Boundary Component
+ * 
+ * Catches JavaScript errors and displays fallback UI
+ */
+
+import { Component, type ReactNode, type ErrorInfo, type ComponentType } from 'react';
+import {
+  COLORS_BG,
+  COLORS_TEXT,
+  COLORS_STATUS,
+  COLORS_ACCENT,
+  FONTS,
+  FONT_SIZES,
+  SPACING,
+  BORDER_RADIUS,
+  BORDER_COLORS,
+} from "../design-tokens";
+
+// ============================================
+// FILE INTROSPECTION METADATA
+// ============================================
+/** @internal */
+export const __metadata = {
+  module: 'client/components/ErrorBoundary',
+  filename: 'ErrorBoundary.tsx',
+  description: 'React Error Boundary for graceful error handling',
+  _meta: { contentHash: 'old-hash' }
+} as const;
+
+export class ErrorBoundary extends Component {
+  render() {
+    return this.props.children;
+  }
+}
+`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'test.tsx'), fileContent);
+        
+        const result = runCli('generate --overwrite --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'test.tsx'), 'utf-8');
+        
+        // CRITICAL: All imports must be preserved
+        expect(content).toContain("import { Component, type ReactNode, type ErrorInfo, type ComponentType } from 'react';");
+        expect(content).toContain('COLORS_BG');
+        expect(content).toContain('COLORS_TEXT');
+        expect(content).toContain('FONT_SIZES');
+        expect(content).toContain('BORDER_COLORS');
+        expect(content).toContain('from "../design-tokens"');
+        
+        // JSDoc header must be preserved
+        expect(content).toContain('Error Boundary Component');
+        expect(content).toContain('Catches JavaScript errors');
+        
+        // Class must be preserved
+        expect(content).toContain('export class ErrorBoundary');
+        
+        // Exactly one metadata block
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+      });
+
+      it('should preserve imports when file has no existing metadata', () => {
+        // Test generating metadata for a file that has imports but no metadata yet
+        const fileContent = `/**
+ * Utility functions
+ */
+
+import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import {
+  formatDate,
+  formatCurrency,
+  formatNumber,
+} from './formatters';
+import { API_BASE_URL, API_TIMEOUT } from '../config';
+
+export function useData() {
+  const [data, setData] = useState(null);
+  return data;
+}
+
+export const CONSTANTS = {
+  MAX_RETRIES: 3,
+  TIMEOUT: 5000
+};
+`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'utils.ts'), fileContent);
+        
+        const result = runCli('generate --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'utils.ts'), 'utf-8');
+        
+        // All imports must be preserved
+        expect(content).toContain("import { useState, useEffect } from 'react';");
+        expect(content).toContain("import type { ReactNode } from 'react';");
+        expect(content).toContain('formatDate');
+        expect(content).toContain('formatCurrency');
+        expect(content).toContain('formatNumber');
+        expect(content).toContain("from './formatters'");
+        expect(content).toContain('API_BASE_URL');
+        expect(content).toContain('API_TIMEOUT');
+        
+        // JSDoc must be preserved
+        expect(content).toContain('Utility functions');
+        
+        // Exports must be preserved
+        expect(content).toContain('export function useData()');
+        expect(content).toContain('export const CONSTANTS');
+        
+        // Should have exactly one metadata block
+        const metadataCount = (content.match(/export const __metadata/g) || []).length;
+        expect(metadataCount).toBe(1);
+      });
+
+      it('should handle file with only JSDoc and imports (no prior metadata)', () => {
+        // Edge case: file starts with JSDoc comment before imports
+        const fileContent = `/**
+ * @fileoverview Main application entry point
+ * @author Developer
+ * @license MIT
+ */
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')!).render(<App />);
+`;
+        
+        fs.writeFileSync(path.join(tempDir, 'src', 'main.tsx'), fileContent);
+        
+        const result = runCli('generate --format=text', tempDir);
+        expect(result.exitCode).toBe(0);
+        
+        const content = fs.readFileSync(path.join(tempDir, 'src', 'main.tsx'), 'utf-8');
+        
+        // JSDoc must be at the top
+        expect(content.indexOf('@fileoverview')).toBeLessThan(content.indexOf('import React'));
+        
+        // All imports preserved
+        expect(content).toContain("import React from 'react';");
+        expect(content).toContain("import { createRoot } from 'react-dom/client';");
+        expect(content).toContain("import App from './App';");
+        
+        // Code preserved
+        expect(content).toContain('createRoot(document.getElementById');
+      });
     });
   });
 

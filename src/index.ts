@@ -252,5 +252,5 @@ export {
 // Version
 // ============================================
 
-export const VERSION = '1.0.7';
+export const VERSION = '1.0.9';
 

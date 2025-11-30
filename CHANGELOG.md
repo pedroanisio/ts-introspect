@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.7] - 2025-11-30
+## [1.0.9] - 2025-11-30
+
+### Fixed
+
+- **Import stripping bug** - Fixed critical bug where `tsi generate --overwrite` would strip imports and file-level JSDoc comments
+  - Root cause: Forward-matching regex `(?:\/\*\*[\s\S]*?\*\/)` could match from file's first `/**` to metadata's JSDoc
+  - Fix: Anchor on `export const __metadata` and search backwards for block boundaries
+  - Added regression tests to prevent recurrence
 
 ### Added
 
